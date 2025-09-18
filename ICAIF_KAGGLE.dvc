@@ -1,0 +1,6 @@
+outs:
+- md5: c08e3f4a20db4bdcf4d1cd384f7ae925.dir
+  size: 141172999
+  nfiles: 3
+  hash: md5
+  path: ICAIF_KAGGLE
