@@ -19,5 +19,5 @@ export AWS_PROFILE=mlsecops_user
 
 dvc pull
 
-DATASET_PATH="/content/ICAIF_KAGGLE/"
-echo "Dataset path: $(realpath "$DATASET_PATH")"
+DATASET_PATH="$(pwd)/ICAIF_KAGGLE"
+echo "Dataset path: $DATASET_PATH"
