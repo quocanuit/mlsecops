@@ -18,7 +18,7 @@ os.environ["AWS_SECRET_ACCESS_KEY"] = "yours"
 os.environ["AWS_REGION"] = "us-east-1"
 ```
 ```
-!sh set_up_dvc_notebook.sh
+!sh set_up.sh
 ```
 
 ## How to use DVC
