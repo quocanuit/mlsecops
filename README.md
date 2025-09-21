@@ -1,39 +1,18 @@
 # MLSecOps
 
-## Quick set up in Colab
-
-```
-!git clone https://github.com/quocanuit/mlsecops.git
-```
-```
-import os
-
-os.chdir("/content/mlsecops")
-
-print("Current working directory:", os.getcwd())
-```
-```
-os.environ["AWS_ACCESS_KEY_ID"] ="YOURS"
-os.environ["AWS_SECRET_ACCESS_KEY"] = "yours"
-os.environ["AWS_REGION"] = "us-east-1"
-```
-```
-!sh set_up.sh
-```
-
-## How to use DVC
+## Setting up
 
 ```bash
-# Pull data (pulled in set_up script)
-dvc pull
+# 1. Create virtualenv (e.g. mlsecops_env)
+source mlsecops_env/bin/activate
 
-# Add/Update data
-dvc add # or dvc add <your-changes>
+# 2. Install requirements
+pip install -r requirements.txt
 
-# Commit to git
-git add
-git commit
+# 3. Create .env
+AWS_ACCESS_KEY_ID=YOURS
+AWS_SECRET_ACCESS_KEY=yours
+AWS_REGION=us-east-1
 
-# Upload new/changed data to remote
-dvc push
+# 4. Working on mlsecops_env kernel
 ```

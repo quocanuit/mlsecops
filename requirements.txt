@@ -1,3 +1,7 @@
 awscli
 dvc
 dvc[s3]
+python-dotenv
+pandas
+numpy
+scikit-learn
