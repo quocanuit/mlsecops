@@ -1,0 +1,70 @@
+name: Build Docker Image for Train Random Forest Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type BUILD to continue proceed'
+        required: true
+
+jobs:
+  build:
+    if: ${{ github.event.inputs.confirm == 'BUILD' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Copy CI tools to src directory
+      run: |
+        # Copy CI tools to src directory so they're in the same location
+        cp tools/ci/* src/
+        echo "CI tools copied to src directory"
+
+    - name: Configure AWS Credentials
+      run: |
+        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" > .env
+        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+        echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
+        echo "Created .env file with AWS credentials"
+        
+    - name: List project contents
+      run: |
+        echo "Contents of src directory:"
+        ls -la src/
+        
+    - name: Run convert.py
+      run: |
+        cd src
+        python convert.py --files train_rf.ipynb
+        
+    - name: Build Docker image
+      run: |
+        docker build -f src/Dockerfile.train_rf -t train-rf .
+        
+    - name: Save Docker image as tar archive
+      run: |
+        docker save train-rf:latest -o train-rf-image.tar
+        gzip train-rf-image.tar
+        ls -lh train-rf-image.tar.gz
+        
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: train-rf-docker-image
+        path: train-rf-image.tar.gz
+        retention-days: 30
+      
+    - name: Clean up
+      if: always()
+      run: |
+        docker rmi train-rf:latest || true
+        echo "Cleanup completed"
