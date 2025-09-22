@@ -57,11 +57,11 @@ jobs:
         ls -lh train-rf-image.tar.gz
         
     - name: Upload Docker image artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: train-rf-docker-image
         path: train-rf-image.tar.gz
-        retention-days: 30
+        retention-days: 1
       
     - name: Clean up
       if: always()
