@@ -3,16 +3,18 @@ name: Build Docker Image for Train Random Forest Model
 on:
   workflow_dispatch:
     inputs:
-      confirm:
-        description: 'Type BUILD to continue proceed'
+      version:
+        description: 'Version tag for the Docker image (e.g., v1.0.0, v1.2.3)'
         required: true
+        type: string
 
 jobs:
   build:
-    if: ${{ github.event.inputs.confirm == 'BUILD' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+    env:
+      VERSION: ${{ github.event.inputs.version }}
     
     steps:
     - name: Checkout code
@@ -58,35 +60,35 @@ jobs:
         
     - name: Build Docker image
       run: |
-        docker build -f src/Dockerfile.train_rf -t train-rf .
+        docker build -f src/Dockerfile.train_rf -t train-rf:${{ env.VERSION }} .
         
     - name: Run Docker container for training
       run: |
-        docker run --rm -v $(pwd)/models:/app/models train-rf
+        docker run --rm -v $(pwd)/models:/app/models train-rf:${{ env.VERSION }}
         echo "Training completed successfully"
         
     - name: Upload trained model as artifact
       uses: actions/upload-artifact@v4
       with:
-        name: trained-rf-model
-        path: models/rf_v0.0.1.pkl
+        name: trained-rf-model-${{ env.VERSION }}
+        path: models/rf.pkl
         retention-days: 1
         
     - name: Save Docker image as tar archive
       run: |
-        docker save train-rf:latest -o train-rf-image.tar
-        gzip train-rf-image.tar
-        ls -lh train-rf-image.tar.gz
+        docker save train-rf:${{ env.VERSION }} -o train-rf-${{ env.VERSION }}.tar
+        gzip train-rf-${{ env.VERSION }}.tar
+        ls -lh train-rf-${{ env.VERSION }}.tar.gz
         
     - name: Upload Docker image artifact
       uses: actions/upload-artifact@v4
       with:
-        name: train-rf-docker-image
-        path: train-rf-image.tar.gz
+        name: train-rf-docker-image-${{ env.VERSION }}
+        path: train-rf-${{ env.VERSION }}.tar.gz
         retention-days: 1
       
     - name: Clean up
       if: always()
       run: |
-        docker rmi train-rf:latest || true
+        docker rmi train-rf:${{ env.VERSION }} || true
         echo "Cleanup completed"
