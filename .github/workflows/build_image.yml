@@ -25,21 +25,31 @@ jobs:
         
     - name: Copy CI tools to src directory
       run: |
-        # Copy CI tools to src directory so they're in the same location
         cp tools/ci/* src/
-        echo "CI tools copied to src directory"
+        mkdir -p models
 
     - name: Configure AWS Credentials
-      run: |
-        echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" > .env
-        echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
-        echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env
-        echo "Created .env file with AWS credentials"
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
         
+    - name: Install DVC
+      run: |
+        pip install dvc[s3]
+        
+    - name: Pull data with DVC
+      run: |
+        dvc pull
+        echo "DVC pull completed successfully"
+      
     - name: List project contents
       run: |
         echo "Contents of src directory:"
         ls -la src/
+        echo "Contents of ICAIF_KAGGLE directory:"
+        ls -la ICAIF_KAGGLE/ || echo "ICAIF_KAGGLE directory not found"
         
     - name: Run convert.py
       run: |
@@ -49,6 +59,18 @@ jobs:
     - name: Build Docker image
       run: |
         docker build -f src/Dockerfile.train_rf -t train-rf .
+        
+    - name: Run Docker container for training
+      run: |
+        docker run --rm -v $(pwd)/models:/app/models train-rf
+        echo "Training completed successfully"
+        
+    - name: Upload trained model as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: trained-rf-model
+        path: models/rf_v0.0.1.pkl
+        retention-days: 1
         
     - name: Save Docker image as tar archive
       run: |
