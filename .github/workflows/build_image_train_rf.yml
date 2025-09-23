@@ -1,0 +1,94 @@
+name: Build Docker Image for Train Random Forest Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for the Docker image (e.g., v1.0.0, v1.2.3)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ github.event.inputs.version }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: Copy CI tools to src directory
+      run: |
+        cp tools/ci/* src/
+        mkdir -p models
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+        
+    - name: Install DVC
+      run: |
+        pip install dvc[s3]
+        
+    - name: Pull data with DVC
+      run: |
+        dvc pull
+        echo "DVC pull completed successfully"
+      
+    - name: List project contents
+      run: |
+        echo "Contents of src directory:"
+        ls -la src/
+        echo "Contents of ICAIF_KAGGLE directory:"
+        ls -la ICAIF_KAGGLE/ || echo "ICAIF_KAGGLE directory not found"
+        
+    - name: Run convert.py
+      run: |
+        cd src
+        python convert.py --files train_rf.ipynb
+        
+    - name: Build Docker image
+      run: |
+        docker build -f src/Dockerfile.train_rf -t train-rf:${{ env.VERSION }} .
+        
+    - name: Run Docker container for training
+      run: |
+        docker run --rm -v $(pwd)/models:/app/models train-rf:${{ env.VERSION }}
+        echo "Training completed successfully"
+        
+    - name: Upload trained model as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: trained-rf-model-${{ env.VERSION }}
+        path: models/rf.pkl
+        retention-days: 1
+        
+    - name: Save Docker image as tar archive
+      run: |
+        docker save train-rf:${{ env.VERSION }} -o train-rf-${{ env.VERSION }}.tar
+        gzip train-rf-${{ env.VERSION }}.tar
+        ls -lh train-rf-${{ env.VERSION }}.tar.gz
+        
+    - name: Upload Docker image artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: train-rf-docker-image-${{ env.VERSION }}
+        path: train-rf-${{ env.VERSION }}.tar.gz
+        retention-days: 1
+      
+    - name: Clean up
+      if: always()
+      run: |
+        docker rmi train-rf:${{ env.VERSION }} || true
+        echo "Cleanup completed"
