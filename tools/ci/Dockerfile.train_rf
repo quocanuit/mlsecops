@@ -11,4 +11,4 @@ COPY src/ ./src/
 
 ENV PYTHONPATH=/app/src
 
-CMD ["python", "src/train_rf.ipynb.py"]
+CMD ["python", "src/train_rf.py"]
