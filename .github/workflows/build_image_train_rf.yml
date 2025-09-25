@@ -15,11 +15,13 @@ jobs:
       contents: read
     env:
       IMAGE_NAME: ${{ github.event.inputs.image_name }}
-      VERSION: ${{ substring(github.sha, 0, 7) }}
     
     steps:
     - name: Checkout code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      
+    - name: Set commit hash
+      run: echo "VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       
     - name: Set up Python
       uses: actions/setup-python@v4
