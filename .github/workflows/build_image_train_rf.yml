@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       image_name:
-        description: 'Name of the image to build (e.g., train-rf, validate-data)'
+        description: 'Name of the image to build (e.g., train_rf, validate_data)'
         required: true
         type: string
 
@@ -15,7 +15,7 @@ jobs:
       contents: read
     env:
       IMAGE_NAME: ${{ github.event.inputs.image_name }}
-      VERSION: ${{ github.sha }}
+      VERSION: ${{ substring(github.sha, 0, 7) }}
     
     steps:
     - name: Checkout code
@@ -53,16 +53,11 @@ jobs:
         ls -la src/
         echo "Contents of ICAIF_KAGGLE directory:"
         ls -la ICAIF_KAGGLE/ || echo "ICAIF_KAGGLE directory not found"
-        
-    - name: Run convert.py
-      run: |
-        cd src
-        python convert.py --files ${{ env.IMAGE_NAME }}.ipynb
-        
+
     - name: Build Docker image
       run: |
         docker build -f src/Dockerfile.${{ env.IMAGE_NAME }} -t ${{ env.IMAGE_NAME }}:${{ env.VERSION }} .
-        
+
     - name: Run Docker container
       run: |
         docker run --rm -v $(pwd)/models:/app/models ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
@@ -87,9 +82,3 @@ jobs:
         name: ${{ env.IMAGE_NAME }}-docker-image-${{ env.VERSION }}
         path: ${{ env.IMAGE_NAME }}-${{ env.VERSION }}.tar.gz
         retention-days: 1
-      
-    - name: Clean up
-      if: always()
-      run: |
-        docker rmi ${{ env.IMAGE_NAME }}:${{ env.VERSION }} || true
-        echo "Cleanup completed"
