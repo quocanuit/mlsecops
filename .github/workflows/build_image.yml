@@ -24,7 +24,7 @@ jobs:
       run: echo "VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c
       with:
         python-version: '3.10'
 
@@ -84,14 +84,12 @@ jobs:
         retention-days: 1
 
     - name: Save Docker image as tar archive
-      if: startsWith(env.IMAGE_NAME, 'train_')
       run: |
         docker save ${{ env.IMAGE_NAME }}:${{ env.VERSION }} -o ${{ env.IMAGE_NAME }}-${{ env.VERSION }}.tar
         gzip ${{ env.IMAGE_NAME }}-${{ env.VERSION }}.tar
         ls -lh ${{ env.IMAGE_NAME }}-${{ env.VERSION }}.tar.gz
 
     - name: Upload Docker image artifact
-      if: startsWith(env.IMAGE_NAME, 'train_')
       uses: actions/upload-artifact@v4
       with:
         name: ${{ env.IMAGE_NAME }}-docker-image-${{ env.VERSION }}
