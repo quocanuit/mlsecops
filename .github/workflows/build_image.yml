@@ -88,24 +88,27 @@ jobs:
     - name: Run Docker container
       if: startsWith(env.IMAGE_NAME, 'train_')
       run: |
-        docker run --rm --user $(id -u):$(id -g) -v $(pwd)/models:/app/models ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        mkdir -p models
+        docker run --rm --user $(id -u):$(id -g) -v ./models:/app/models ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
         echo "Container execution completed successfully"
 
     - name: Run Docker container
       if: startsWith(env.IMAGE_NAME, 'extract_features')
       run: |
-        docker run --rm --user $(id -u):$(id -g) -v $(pwd)/extracted_data:/app/extracted_data ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        mkdir -p extracted_data
+        docker run --rm --user $(id -u):$(id -g) -v ./extracted_data:/app/extracted_data ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
         echo "Container execution completed successfully"
         mkdir -p ICAIF_KAGGLE/extracted/
-        cp $(pwd)/extracted_data/* ICAIF_KAGGLE/extracted/
+        cp extracted_data/* ICAIF_KAGGLE/extracted/
 
     - name: Run Docker container
       if: startsWith(env.IMAGE_NAME, 'validate_data')
       run: |
-        docker run --rm --user $(id -u):$(id -g) -v $(pwd)/validated_data:/app/validated_data ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        mkdir -p validated_data
+        docker run --rm --user $(id -u):$(id -g) -v ./validated_data:/app/validated_data ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
         echo "Container execution completed successfully"
         mkdir -p ICAIF_KAGGLE/validated/
-        cp $(pwd)/validated_data/* ICAIF_KAGGLE/validated/
+        cp validated_data/* ICAIF_KAGGLE/validated/
 
     - name: Check for changes after DVC operations
       id: check_changes
