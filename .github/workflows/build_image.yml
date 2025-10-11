@@ -72,6 +72,8 @@ jobs:
 
         # Temporarily allow git to track ICAIF_KAGGLE directory
         sed -i 's|^/ICAIF_KAGGLE|#/ICAIF_KAGGLE|' .gitignore
+        git config --global user.email "mlsecops-ci@thesis.uit"
+        git config --global user.name "mlsecops-ci"
         git add ICAIF_KAGGLE/
         git commit -m "tmp"
 
