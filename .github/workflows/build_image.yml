@@ -67,6 +67,12 @@ jobs:
         docker run --rm -v $(pwd)/extracted_data:/app/extracted_data ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
         echo "Container execution completed successfully"
 
+    - name: Run Docker container
+      if: startsWith(env.IMAGE_NAME, 'validate_data')
+      run: |
+        docker run --rm -v $(pwd)/validated_data:/app/validated_data ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        echo "Container execution completed successfully"
+
     - name: Upload model artifacts
       if: startsWith(env.IMAGE_NAME, 'train_')
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -81,6 +87,14 @@ jobs:
       with:
         name: ${{ env.IMAGE_NAME }}-artifacts-${{ env.VERSION }}
         path: extracted_data/
+        retention-days: 1
+
+    - name: Upload validated data artifacts
+      if: startsWith(env.IMAGE_NAME, 'validate_data')
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      with:
+        name: ${{ env.IMAGE_NAME }}-artifacts-${{ env.VERSION }}
+        path: validated_data/
         retention-days: 1
 
     - name: Save Docker image as tar archive
