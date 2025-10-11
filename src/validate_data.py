@@ -159,7 +159,7 @@ def main():
 
     ROOT = Path(os.getcwd())
     print(f"Project ROOT: {ROOT}")
-    df = pd.read_csv(f"{ROOT}/ICAIF_KAGGLE/testbed/train/small__regular/train.csv")
+    df = pd.read_csv(f"{ROOT}/ICAIF_KAGGLE/raw/train.csv")
 
     schema_presence_errors = validate_schema_presence(df)
     df, dtype_errors = coerce_dtypes(df)

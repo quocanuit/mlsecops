@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
-df = pd.read_csv(f"{ROOT}/ICAIF_KAGGLE/testbed/train/small__regular/train.csv")
+df = pd.read_csv(f"{ROOT}/ICAIF_KAGGLE/raw/train.csv")
 # Target column
 y = df["fraud_bool"]
 
