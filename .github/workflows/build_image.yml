@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       data_version:
-        description: '.dvc commit hash for data version'
+        description: 'Git commit hash of .dvc data version'
         required: true
         type: string
         default: 'master_latest'
@@ -70,6 +70,11 @@ jobs:
         echo "Contents of ICAIF_KAGGLE directory:"
         ls -R ICAIF_KAGGLE/ || echo "ICAIF_KAGGLE directory not found"
 
+        # Temporarily allow git to track ICAIF_KAGGLE directory
+        sed -i 's|^/ICAIF_KAGGLE|#/ICAIF_KAGGLE|' .gitignore
+        git add ICAIF_KAGGLE/
+        git commit -m "tmp"
+
     - name: Build Docker image
       run: |
         docker build -f src/Dockerfile.${{ env.IMAGE_NAME }} -t ${{ env.IMAGE_NAME }}:${{ env.VERSION }} .
@@ -99,7 +104,8 @@ jobs:
     - name: Check for changes after DVC operations
       id: check_changes
       run: |
-        if git diff --quiet ICAIF_KAGGLE/ && git diff --cached --quiet ICAIF_KAGGLE/; then
+        # Check for any changes (modified, staged, or untracked files) in ICAIF_KAGGLE directory
+        if [ -z "$(git status --porcelain ICAIF_KAGGLE/)" ]; then
           echo "No changes detected in ICAIF_KAGGLE directory"
           echo "HAS_CHANGES=false" >> $GITHUB_OUTPUT
         else
@@ -107,6 +113,10 @@ jobs:
           git status --porcelain ICAIF_KAGGLE/
           echo "HAS_CHANGES=true" >> $GITHUB_OUTPUT
         fi
+
+        # Restore gitignore to original state
+        git reset HEAD~
+        sed -i 's|^#/ICAIF_KAGGLE|/ICAIF_KAGGLE|' .gitignore
 
     - name: Add new data to DVC and push
       if: steps.check_changes.outputs.HAS_CHANGES == 'true'
