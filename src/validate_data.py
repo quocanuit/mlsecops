@@ -192,15 +192,17 @@ def main():
     output_dir = ROOT / "validated_data"
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
-    cleaned.to_csv(output_dir, index=False)
 
-    report_path = os.path.splitext(output_dir)[0] + "_validation_report.json"
+    output_file = output_dir / "train_processed.csv"
+    cleaned.to_csv(output_file, index=False)
+
+    report_path = output_dir / "validation_report.json"
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
 
     print("=== VALIDATION REPORT ===")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    print(f"\nSaved cleaned CSV -> {output_dir}")
+    print(f"\nSaved cleaned CSV -> {output_file}")
     print(f"Saved report      -> {report_path}")
 
     return 0
