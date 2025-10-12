@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       image_name:
-        description: 'Name of the image to build: validate_data / extract_features / train_rf'
+        description: 'Name of the image to build [ validate_data / extract_features / train_rf ]'
         required: true
         type: string
       data_version:
@@ -12,6 +12,11 @@ on:
         required: true
         type: string
         default: 'master_latest'
+      dvc_push:
+        description: 'Create new update for data on DVC? [ yes / no ]'
+        required: true
+        type: string
+        default: 'no'
 
 jobs:
   build:
@@ -86,31 +91,28 @@ jobs:
         docker build -f src/Dockerfile.${{ env.IMAGE_NAME }} -t ${{ env.IMAGE_NAME }}:${{ env.VERSION }} .
 
     - name: Run Docker container
-      if: startsWith(env.IMAGE_NAME, 'train_')
       run: |
-        mkdir -p models
-        docker run --rm --user $(id -u):$(id -g) -v ./models:/app/models ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        mkdir -p artifacts
+
+        docker run --rm --user $(id -u):$(id -g) -v ./artifacts:/app/artifacts ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
         echo "Container execution completed successfully"
 
-    - name: Run Docker container
-      if: startsWith(env.IMAGE_NAME, 'extract_features')
-      run: |
-        mkdir -p extracted_data
-        docker run --rm --user $(id -u):$(id -g) -v ./extracted_data:/app/extracted_data ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
-        echo "Container execution completed successfully"
-        mkdir -p ICAIF_KAGGLE/extracted/
-        cp extracted_data/* ICAIF_KAGGLE/extracted/
-
-    - name: Run Docker container
-      if: startsWith(env.IMAGE_NAME, 'validate_data')
-      run: |
-        mkdir -p validated_data
-        docker run --rm --user $(id -u):$(id -g) -v ./validated_data:/app/validated_data ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
-        echo "Container execution completed successfully"
-        mkdir -p ICAIF_KAGGLE/validated/
-        cp validated_data/* ICAIF_KAGGLE/validated/
+        case "${{ env.IMAGE_NAME }}" in
+          extract_features)
+            mkdir -p ICAIF_KAGGLE/extracted/
+            cp artifacts/extracted_data/* ICAIF_KAGGLE/extracted/ 2>/dev/null || echo "No extracted data files to copy"
+            ;;
+          validate_data)
+            mkdir -p ICAIF_KAGGLE/validated/
+            cp artifacts/validated_data/* ICAIF_KAGGLE/validated/ 2>/dev/null || echo "No validated data files to copy"
+            ;;
+          train_*)
+            echo "Training completed - model saved in artifacts/models/"
+            ;;
+        esac
 
     - name: Check for changes after DVC operations
+      if: github.event.inputs.dvc_push != 'yes'
       id: check_changes
       run: |
         if [ -z "$(git status --porcelain ICAIF_KAGGLE/)" ]; then
@@ -127,14 +129,14 @@ jobs:
         sed -i 's|^#/ICAIF_KAGGLE|/ICAIF_KAGGLE|' .gitignore
 
     - name: Add new data to DVC and push
-      if: steps.check_changes.outputs.HAS_CHANGES == 'true'
+      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && github.event.inputs.dvc_push != 'yes'
       run: |
         dvc add ICAIF_KAGGLE
         dvc push
         echo "DVC operations completed successfully"
 
     - name: Create Pull Request for DVC changes
-      if: steps.check_changes.outputs.HAS_CHANGES == 'true'
+      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && github.event.inputs.dvc_push != 'yes'
       uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
@@ -151,28 +153,11 @@ jobs:
         add-paths: |
           ICAIF_KAGGLE.dvc
 
-    - name: Upload model artifacts
-      if: startsWith(env.IMAGE_NAME, 'train_')
+    - name: Upload artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
       with:
         name: ${{ env.IMAGE_NAME }}-artifacts-${{ env.VERSION }}
-        path: models/
-        retention-days: 1
-
-    - name: Upload extracted data artifacts
-      if: startsWith(env.IMAGE_NAME, 'extract_features')
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-      with:
-        name: ${{ env.IMAGE_NAME }}-artifacts-${{ env.VERSION }}
-        path: extracted_data/
-        retention-days: 1
-
-    - name: Upload validated data artifacts
-      if: startsWith(env.IMAGE_NAME, 'validate_data')
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-      with:
-        name: ${{ env.IMAGE_NAME }}-artifacts-${{ env.VERSION }}
-        path: validated_data/
+        path: artifacts/
         retention-days: 1
 
     - name: Save Docker image as tar archive
