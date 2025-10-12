@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import json
 from sklearn.model_selection import train_test_split
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -121,8 +122,8 @@ X_train, X_test, y_train, y_test = train_test_split(
 
 print("Train:", X_train.shape, " Test:", X_test.shape)
 
-extracted_data_dir = ROOT / "extracted_data"
-extracted_data_dir.mkdir(exist_ok=True)
+extracted_data_dir = ROOT / "artifacts" / "extracted_data"
+extracted_data_dir.mkdir(parents=True, exist_ok=True)
 
 # Save training and test sets
 X_train.to_csv(extracted_data_dir / "X_train.csv", index=False)
@@ -130,5 +131,27 @@ X_test.to_csv(extracted_data_dir / "X_test.csv", index=False)
 y_train.to_csv(extracted_data_dir / "y_train.csv", index=False)
 y_test.to_csv(extracted_data_dir / "y_test.csv", index=False)
 
+# Create extraction report
+report = {
+    "original_rows": int(df.shape[0]),
+    "original_columns": int(df.shape[1]),
+    "features_created": int(X.shape[1] - df.select_dtypes(exclude=["object","string"]).shape[1]),
+    "categorical_columns": len(cat_cols),
+    "numerical_columns": len(num_cols),
+    "train_samples": int(X_train.shape[0]),
+    "test_samples": int(X_test.shape[0]),
+    "fraud_rate_train": float(y_train.mean()),
+    "fraud_rate_test": float(y_test.mean()),
+}
+
+# Save extraction report
+report_path = extracted_data_dir.parent / "extraction_report.json"
+
+with open(report_path, "w", encoding="utf-8") as f:
+    json.dump(report, f, ensure_ascii=False, indent=2)
+
+print("=== EXTRACTION REPORT ===")
+print(json.dumps(report, ensure_ascii=False, indent=2))
 print(f"Saved extracted data to: {extracted_data_dir}")
 print(f"Files created: X_train.csv, X_test.csv, y_train.csv, y_test.csv")
+print(f"Saved report -> {report_path}")

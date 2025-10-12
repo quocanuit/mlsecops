@@ -3,9 +3,8 @@ FROM python:3.10-slim
 WORKDIR /app
 
 COPY src/requirements.ci.txt .
-RUN pip install --no-cache-dir -r requirements.ci.txt
 
-COPY ICAIF_KAGGLE/ ./ICAIF_KAGGLE/
+RUN pip install --no-cache-dir -r requirements.ci.txt
 
 COPY src/ ./src/
 
