@@ -13,7 +13,7 @@ import os
 
 ROOT = Path(os.getcwd())
 print(f"Project ROOT: {ROOT}")
-df = pd.read_csv(f"{ROOT}/ICAIF_KAGGLE/raw/train.csv")
+df = pd.read_csv(f"{ROOT}/ICAIF_KAGGLE/validated/train_processed.csv")
 
 # Ensure categorical types
 cat_cols_raw = ["payment_type","employment_status","housing_status","source","device_os","assignment"]

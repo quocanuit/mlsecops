@@ -34,6 +34,18 @@ jobs:
         fetch-depth: 0
         ref: ${{ github.ref }}
 
+    steps:
+    - name: Print build information
+      run: |
+        echo "=== Build Information ==="
+        echo "Code version: ${{ github.server_url }}/${{ github.repository }}/tree/$(git rev-parse HEAD)"
+        echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.inputs.data_version }}/ICAIF_KAGGLE.dvc"
+        echo "Parameters received:"
+        echo "  - image_name: ${{ github.event.inputs.image_name }}"
+        echo "  - data_version: ${{ github.event.inputs.data_version }}"
+        echo "  - dvc_push: ${{ github.event.inputs.dvc_push }}"
+        echo "=========================="
+
     - name: Set data version
       run: |
         if [ "${{ github.event.inputs.data_version }}" = "master_latest" ]; then
