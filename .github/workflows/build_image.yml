@@ -34,6 +34,34 @@ jobs:
         fetch-depth: 0
         ref: ${{ github.ref }}
 
+    - name: Process build information
+      run: |
+        echo "=== Build Information ==="
+        echo "Code version: ${{ github.server_url }}/${{ github.repository }}/tree/$(git rev-parse HEAD)"
+
+        if [ "${{ github.event.inputs.data_version }}" = "master_latest" ]; then
+          MASTER_COMMIT=$(git rev-parse origin/master)
+          echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/$MASTER_COMMIT/ICAIF_KAGGLE.dvc"
+        else
+          echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.inputs.data_version }}/ICAIF_KAGGLE.dvc"
+        fi
+
+        # Auto-override dvc_push for training images
+        if [[ "${{ github.event.inputs.image_name }}" == train_* ]]; then
+          echo "DVC_PUSH=no" >> $GITHUB_ENV
+          echo "NOTE: dvc_push automatically set to 'no' for training images (train_*)"
+          EFFECTIVE_DVC_PUSH="no"
+        else
+          echo "DVC_PUSH=${{ github.event.inputs.dvc_push }}" >> $GITHUB_ENV
+          EFFECTIVE_DVC_PUSH="${{ github.event.inputs.dvc_push }}"
+        fi
+
+        echo "Parameters received:"
+        echo "  - image_name: ${{ github.event.inputs.image_name }}"
+        echo "  - data_version: ${{ github.event.inputs.data_version }}"
+        echo "  - dvc_push: ${{ github.event.inputs.dvc_push }} (effective: $EFFECTIVE_DVC_PUSH)"
+        echo "=========================="
+
     - name: Set data version
       run: |
         if [ "${{ github.event.inputs.data_version }}" = "master_latest" ]; then
@@ -115,7 +143,7 @@ jobs:
         esac
 
     - name: Check for changes after DVC operations
-      if: github.event.inputs.dvc_push == 'yes'
+      if: env.DVC_PUSH == 'yes'
       id: check_changes
       run: |
         if [ -z "$(git status --porcelain ICAIF_KAGGLE/)" ]; then
@@ -132,14 +160,14 @@ jobs:
         sed -i 's|^#/ICAIF_KAGGLE|/ICAIF_KAGGLE|' .gitignore
 
     - name: Add new data to DVC and push
-      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && github.event.inputs.dvc_push == 'yes'
+      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && env.DVC_PUSH == 'yes'
       run: |
         dvc add ICAIF_KAGGLE
         dvc push
         echo "DVC operations completed successfully"
 
     - name: Create Pull Request for DVC changes
-      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && github.event.inputs.dvc_push == 'yes'
+      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && env.DVC_PUSH == 'yes'
       uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
