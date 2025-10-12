@@ -1,6 +1,6 @@
 outs:
-- md5: e6ee7eb65b577a42e8bc076b3d44e60d.dir
-  size: 208702766
-  nfiles: 2
+- md5: 4a216645e40ba1c6d241e955c330af08.dir
+  size: 543162431
+  nfiles: 6
   hash: md5
   path: ICAIF_KAGGLE
