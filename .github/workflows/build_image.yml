@@ -50,14 +50,16 @@ jobs:
         if [[ "${{ github.event.inputs.image_name }}" == train_* ]]; then
           echo "DVC_PUSH=no" >> $GITHUB_ENV
           echo "NOTE: dvc_push automatically set to 'no' for training images (train_*)"
+          EFFECTIVE_DVC_PUSH="no"
         else
           echo "DVC_PUSH=${{ github.event.inputs.dvc_push }}" >> $GITHUB_ENV
+          EFFECTIVE_DVC_PUSH="${{ github.event.inputs.dvc_push }}"
         fi
 
         echo "Parameters received:"
         echo "  - image_name: ${{ github.event.inputs.image_name }}"
         echo "  - data_version: ${{ github.event.inputs.data_version }}"
-        echo "  - dvc_push: ${{ github.event.inputs.dvc_push }} (effective: ${DVC_PUSH:-${{ github.event.inputs.dvc_push }}})"
+        echo "  - dvc_push: ${{ github.event.inputs.dvc_push }} (effective: $EFFECTIVE_DVC_PUSH)"
         echo "=========================="
 
     - name: Set data version
