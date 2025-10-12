@@ -5,8 +5,6 @@ WORKDIR /app
 COPY src/requirements.ci.txt .
 RUN pip install --no-cache-dir -r requirements.ci.txt
 
-COPY ICAIF_KAGGLE/ ./ICAIF_KAGGLE/
-
 COPY src/ ./src/
 
 ENV PYTHONPATH=/app/src

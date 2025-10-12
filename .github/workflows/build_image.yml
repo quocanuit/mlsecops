@@ -94,7 +94,10 @@ jobs:
       run: |
         mkdir -p artifacts
 
-        docker run --rm --user $(id -u):$(id -g) -v ./artifacts:/app/artifacts ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        docker run --rm --user $(id -u):$(id -g) \
+          -v ./ICAIF_KAGGLE:/app/ICAIF_KAGGLE:ro \
+          -v ./artifacts:/app/artifacts \
+          ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
         echo "Container execution completed successfully"
 
         case "${{ env.IMAGE_NAME }}" in
@@ -112,7 +115,7 @@ jobs:
         esac
 
     - name: Check for changes after DVC operations
-      if: github.event.inputs.dvc_push != 'yes'
+      if: github.event.inputs.dvc_push == 'yes'
       id: check_changes
       run: |
         if [ -z "$(git status --porcelain ICAIF_KAGGLE/)" ]; then
@@ -129,14 +132,14 @@ jobs:
         sed -i 's|^#/ICAIF_KAGGLE|/ICAIF_KAGGLE|' .gitignore
 
     - name: Add new data to DVC and push
-      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && github.event.inputs.dvc_push != 'yes'
+      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && github.event.inputs.dvc_push == 'yes'
       run: |
         dvc add ICAIF_KAGGLE
         dvc push
         echo "DVC operations completed successfully"
 
     - name: Create Pull Request for DVC changes
-      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && github.event.inputs.dvc_push != 'yes'
+      if: steps.check_changes.outputs.HAS_CHANGES == 'true' && github.event.inputs.dvc_push == 'yes'
       uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
