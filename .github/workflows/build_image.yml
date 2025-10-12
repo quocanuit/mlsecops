@@ -38,7 +38,14 @@ jobs:
       run: |
         echo "=== Build Information ==="
         echo "Code version: ${{ github.server_url }}/${{ github.repository }}/tree/$(git rev-parse HEAD)"
-        echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.inputs.data_version }}/ICAIF_KAGGLE.dvc"
+
+        if [ "${{ github.event.inputs.data_version }}" = "master_latest" ]; then
+          MASTER_COMMIT=$(git rev-parse origin/master)
+          echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/$MASTER_COMMIT/ICAIF_KAGGLE.dvc"
+        else
+          echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.inputs.data_version }}/ICAIF_KAGGLE.dvc"
+        fi
+
         echo "Parameters received:"
         echo "  - image_name: ${{ github.event.inputs.image_name }}"
         echo "  - data_version: ${{ github.event.inputs.data_version }}"
