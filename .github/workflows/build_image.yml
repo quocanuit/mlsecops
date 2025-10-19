@@ -18,12 +18,16 @@ on:
         type: string
         default: 'no'
 
+env:
+  TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+
 jobs:
   build:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
       pull-requests: write
+      id-token: write
     env:
       IMAGE_NAME: ${{ github.event.inputs.image_name }}
 
@@ -90,11 +94,11 @@ jobs:
         mkdir -p models
 
     - name: Configure AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v4
+      uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        role-to-assume: arn:aws:iam::625715126488:role/GithubActions
+        aws-region: us-east-1
+
 
     - name: Install DVC
       run: |
