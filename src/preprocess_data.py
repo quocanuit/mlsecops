@@ -203,7 +203,7 @@ def main():
     X_train, y_train, X_test, y_test, preprocessor, report = preprocess_data()
 
     # Save preprocessed data
-    data_dir = save_preprocessed_data(X_train, y_train, X_test, y_test, preprocessor)
+    data_dir = save_preprocessed_data(X_train, y_train, X_test, y_test)
 
     save_report(report)
 
