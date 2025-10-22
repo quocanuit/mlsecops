@@ -82,7 +82,7 @@ def preprocess_data():
         numerical_features=numerical_features
     )
 
-    return X_train_resampled, y_train_resampled, X_test_transformed, y_test, preprocessor, report
+    return X_train_resampled, y_train_resampled, X_test_transformed, y_test, report
 
 
 def generate_report(df_original, df_balanced, X_train_original, y_train_original,
@@ -153,7 +153,7 @@ def generate_report(df_original, df_balanced, X_train_original, y_train_original
 
 def save_preprocessed_data(X_train, y_train, X_test, y_test):
     # Create preprocessed_data directory
-    preprocessed_data_dir = ROOT / "artifacts" / "preprocessed_data"
+    preprocessed_data_dir = ROOT / "artifacts" / "preprocessed"
     preprocessed_data_dir.mkdir(parents=True, exist_ok=True)
 
     n_features = X_train.shape[1]
@@ -200,7 +200,7 @@ def save_report(report):
 
 
 def main():
-    X_train, y_train, X_test, y_test, preprocessor, report = preprocess_data()
+    X_train, y_train, X_test, y_test, report = preprocess_data()
 
     # Save preprocessed data
     data_dir = save_preprocessed_data(X_train, y_train, X_test, y_test)

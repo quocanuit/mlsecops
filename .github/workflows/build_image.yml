@@ -131,8 +131,8 @@ jobs:
 
         case "${{ env.IMAGE_NAME }}" in
           preprocess_data)
-            mkdir -p data/preprocessed_data/
-            cp artifacts/preprocessed_data_data/* data/preprocessed_data/ 2>/dev/null || echo "No preprocessed data files to copy"
+            mkdir -p data/preprocessed/
+            cp artifacts/preprocessed/* data/preprocessed/ 2>/dev/null || echo "No preprocessed data files to copy"
             ;;
           validate_data)
             mkdir -p data/validated/
