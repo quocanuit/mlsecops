@@ -6,6 +6,7 @@ from pathlib import Path
 import os
 from datetime import datetime
 import sklearn
+import xgboost
 
 from sklearn.metrics import (
     classification_report,
