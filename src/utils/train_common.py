@@ -72,9 +72,15 @@ def evaluate_model(model_name, y_test, y_test_pred, y_test_prob, train_time, pre
         y_test, y_test_pred, average="binary", zero_division=0
     )
 
+    idx_default = np.argmin(np.abs(thresholds - 0.5))
+    fpr_default = float(fpr[idx_default])
+    tpr_default = float(tpr[idx_default])
+
     results_default = {
         "Model": model_name,
         "Decision Threshold": 0.5,
+        "FPR@threshold": fpr_default,
+        "TPR@threshold": tpr_default,
         "Accuracy": float(accuracy_default),
         "Precision": float(prec_default),
         "Recall": float(rec_default),
