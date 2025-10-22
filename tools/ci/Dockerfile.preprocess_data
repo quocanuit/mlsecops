@@ -10,4 +10,4 @@ COPY src/ ./src/
 
 ENV PYTHONPATH=/app/src
 
-CMD ["python", "src/extract_features.py"]
+CMD ["python", "src/preprocess_data.py"]
