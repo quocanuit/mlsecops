@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 import os
 
-from sklearn.ensemble import RandomForestClassifier
+import xgboost as xgb
 
 from utils.train_common import (
     load_preprocessed_data,
@@ -19,9 +19,9 @@ FIXED_FPR = 0.05
 
 
 def train_model(X_train, y_train, X_test):
-    model = RandomForestClassifier(random_state=RANDOM_STATE_VALUE)
+    model = xgb.XGBClassifier(random_state=RANDOM_STATE_VALUE, use_label_encoder=False, eval_metric='logloss')
 
-    print("Training Random Forest model...")
+    print("Training XGBoost model...")
     start_time = time.time()
     model.fit(X_train, y_train)
     train_time = time.time() - start_time
@@ -41,7 +41,7 @@ def train_model(X_train, y_train, X_test):
 
 def main():
     """Main execution function."""
-    print("RANDOM FOREST MODEL TRAINING")
+    print("XGBOOST MODEL TRAINING")
 
     # Load preprocessed data
     X_train_resampled, y_train_resampled, X_test_transformed, y_test = load_preprocessed_data()
@@ -53,14 +53,14 @@ def main():
 
     # Evaluate the model
     results_default, results_fixed, fixed_threshold, report_default, report_fixed = evaluate_model(
-        "Random Forest", y_test, y_test_pred, y_test_prob, train_time, prediction_time, FIXED_FPR
+        "XGBoost", y_test, y_test_pred, y_test_prob, train_time, prediction_time, FIXED_FPR
     )
 
     # Save model bundle
-    save_model(model, "Random Forest Classifier", fixed_threshold, FIXED_FPR, metadata, "rf_model_bundle.pkl")
+    save_model(model, "XGBoost Classifier", fixed_threshold, FIXED_FPR, metadata, "xgb_model_bundle.pkl")
 
     # Save training report
-    save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, "training_report_rf.json")
+    save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, "training_report_xgb.json")
 
     print("\nTraining completed successfully!")
 
