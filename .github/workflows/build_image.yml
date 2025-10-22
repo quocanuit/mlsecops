@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       image_name:
-        description: 'Name of the image to build [ validate_data / extract_features / train_rf ]'
+        description: 'Name of the image to build [ validate_data / preprocess_data / train_rf ]'
         required: true
         type: string
       data_version:
@@ -42,9 +42,9 @@ jobs:
 
         if [ "${{ github.event.inputs.data_version }}" = "master_latest" ]; then
           MASTER_COMMIT=$(git rev-parse origin/master)
-          echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/$MASTER_COMMIT/ICAIF_KAGGLE.dvc"
+          echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/$MASTER_COMMIT/data.dvc"
         else
-          echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.inputs.data_version }}/ICAIF_KAGGLE.dvc"
+          echo "Data version: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.event.inputs.data_version }}/data.dvc"
         fi
 
         # Auto-override dvc_push for training images
@@ -66,15 +66,15 @@ jobs:
     - name: Set data version
       run: |
         if [ "${{ github.event.inputs.data_version }}" = "master_latest" ]; then
-          echo "Using latest ICAIF_KAGGLE.dvc from master branch"
-          git show origin/master:ICAIF_KAGGLE.dvc > ICAIF_KAGGLE.dvc
+          echo "Using latest data.dvc from master branch"
+          git show origin/master:data.dvc > data.dvc
           echo "DATA_VERSION=master_latest" >> $GITHUB_ENV
         else
-          echo "Using ICAIF_KAGGLE.dvc from commit ${{ github.event.inputs.data_version }}"
-          git show ${{ github.event.inputs.data_version }}:ICAIF_KAGGLE.dvc > ICAIF_KAGGLE.dvc
+          echo "Using data.dvc from commit ${{ github.event.inputs.data_version }}"
+          git show ${{ github.event.inputs.data_version }}:data.dvc > data.dvc
           echo "DATA_VERSION=${{ github.event.inputs.data_version }}" >> $GITHUB_ENV
         fi
-        echo "Updated ICAIF_KAGGLE.dvc to version from commit ${{ github.event.inputs.data_version }}"
+        echo "Updated data.dvc to version from commit ${{ github.event.inputs.data_version }}"
 
     - name: Set commit hash
       run: |
@@ -105,14 +105,14 @@ jobs:
       run: |
         dvc pull
         echo "DVC pull completed successfully"
-        echo "Contents of ICAIF_KAGGLE directory:"
-        ls -R ICAIF_KAGGLE/ || echo "ICAIF_KAGGLE directory not found"
+        echo "Contents of data directory:"
+        ls -R data/ || echo "data directory not found"
 
-        # Temporarily allow git to track ICAIF_KAGGLE directory
-        sed -i 's|^/ICAIF_KAGGLE|#/ICAIF_KAGGLE|' .gitignore
+        # Temporarily allow git to track data directory
+        sed -i 's|^/data|#/data|' .gitignore
         git config --global user.email "mlsecops-ci@thesis.uit"
         git config --global user.name "mlsecops-ci"
-        git add ICAIF_KAGGLE/
+        git add data/
         git commit -m "tmp"
 
     - name: Build Docker image
@@ -124,19 +124,19 @@ jobs:
         mkdir -p artifacts
 
         docker run --rm --user $(id -u):$(id -g) \
-          -v ./ICAIF_KAGGLE:/app/ICAIF_KAGGLE:ro \
+          -v ./data:/app/data:ro \
           -v ./artifacts:/app/artifacts \
           ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
         echo "Container execution completed successfully"
 
         case "${{ env.IMAGE_NAME }}" in
-          extract_features)
-            mkdir -p ICAIF_KAGGLE/extracted/
-            cp artifacts/extracted_data/* ICAIF_KAGGLE/extracted/ 2>/dev/null || echo "No extracted data files to copy"
+          preprocess_data)
+            mkdir -p data/preprocessed_data/
+            cp artifacts/preprocessed_data_data/* data/preprocessed_data/ 2>/dev/null || echo "No preprocessed data files to copy"
             ;;
           validate_data)
-            mkdir -p ICAIF_KAGGLE/validated/
-            cp artifacts/validated_data/* ICAIF_KAGGLE/validated/ 2>/dev/null || echo "No validated data files to copy"
+            mkdir -p data/validated/
+            cp artifacts/validated_data/* data/validated/ 2>/dev/null || echo "No validated data files to copy"
             ;;
           train_*)
             echo "Training completed - model saved in artifacts/models/"
@@ -147,23 +147,23 @@ jobs:
       if: env.DVC_PUSH == 'yes'
       id: check_changes
       run: |
-        if [ -z "$(git status --porcelain ICAIF_KAGGLE/)" ]; then
-          echo "No changes detected in ICAIF_KAGGLE directory"
+        if [ -z "$(git status --porcelain data/)" ]; then
+          echo "No changes detected in data directory"
           echo "HAS_CHANGES=false" >> $GITHUB_OUTPUT
         else
-          echo "Changes detected in ICAIF_KAGGLE directory"
-          git status --porcelain ICAIF_KAGGLE/
+          echo "Changes detected in data directory"
+          git status --porcelain data/
           echo "HAS_CHANGES=true" >> $GITHUB_OUTPUT
         fi
 
         # Restore gitignore to original state
         git reset HEAD~
-        sed -i 's|^#/ICAIF_KAGGLE|/ICAIF_KAGGLE|' .gitignore
+        sed -i 's|^#/data|/data|' .gitignore
 
     - name: Add new data to DVC and push
       if: steps.check_changes.outputs.HAS_CHANGES == 'true' && env.DVC_PUSH == 'yes'
       run: |
-        dvc add ICAIF_KAGGLE
+        dvc add data
         dvc push
         echo "DVC operations completed successfully"
 
@@ -183,7 +183,7 @@ jobs:
         author: "mlsecops-ci <mlsecops-ci@thesis.uit>"
         committer: "mlsecops-ci <mlsecops-ci@thesis.uit>"
         add-paths: |
-          ICAIF_KAGGLE.dvc
+          data.dvc
 
     - name: Upload artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
