@@ -28,7 +28,7 @@ FIXED_FPR = 0.05
 
 def load_preprocessed_data():
     # Load data
-    preprocessed_data_dir = ROOT / "artifacts" / "preprocessed"
+    preprocessed_data_dir = ROOT / "data" / "preprocessed"
 
     X_train_resampled = pd.read_csv(preprocessed_data_dir / "X_train_resampled.csv").values
     y_train_resampled = pd.read_csv(preprocessed_data_dir / "y_train_resampled.csv").values.ravel()
