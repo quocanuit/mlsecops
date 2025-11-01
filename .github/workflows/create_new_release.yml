@@ -1,0 +1,55 @@
+name: Create New Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    strategy:
+      matrix:
+        image_name: [validate_data, preprocess_data, train_rf, train_xgb]
+    env:
+        VERSION_TAG: ${{ github.ref_name }}
+        IMAGE_NAME: ${{ matrix.image_name }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      with:
+        fetch-depth: 0
+        ref: ${{ github.ref }}
+
+    - name: Process build information
+      run: |
+        echo "Code version: ${{ github.server_url }}/${{ github.repository }}/tree/$(git rev-parse HEAD)"
+        echo "Image name: ${{ env.IMAGE_NAME }}"
+        echo "Triggered version tag: ${{ env.VERSION_TAG }}"
+
+    - name: Build Docker image
+      run: |
+        docker build -f tools/ci/Dockerfile.${{ env.IMAGE_NAME }} -t ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} .
+
+    - name: Verify Docker image
+      run: |
+        echo "Verifying ${{ env.IMAGE_NAME }} image..."
+        docker images | grep ${{ env.IMAGE_NAME }}
+
+        docker run --rm ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} python --version
+        docker run --rm ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} ls -la /app/src/
+
+        echo "Image ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} verified"
+
+    - name: Run Trivy security scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }}
+        format: 'table'
+        exit-code: '1'
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
