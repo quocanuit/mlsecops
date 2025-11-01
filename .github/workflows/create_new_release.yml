@@ -53,3 +53,25 @@ jobs:
         exit-code: '1'
         ignore-unfixed: true
         severity: 'CRITICAL,HIGH'
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838
+      with:
+        role-to-assume: arn:aws:iam::625715126488:role/GithubActions
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076
+
+    - name: Tag and push Docker image to ECR
+      env:
+        ECR_REGISTRY: 625715126488.dkr.ecr.us-east-1.amazonaws.com
+        ECR_REPOSITORY: registry
+      run: |
+        echo "Tagging image for ECR..."
+        docker tag ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_NAME }}-${{ env.VERSION_TAG }}
+
+        echo "Pushing image to ECR..."
+        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_NAME }}-${{ env.VERSION_TAG }}
+
+        echo "Successfully pushed ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} to ECR"
