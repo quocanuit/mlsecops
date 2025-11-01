@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: template-validate-data
+  namespace: argo-workflows
+spec:
+  templates:
+    - name: validate-data
+      inputs:
+        parameters:
+          - name: ecr-registry
+          - name: image-tag
+      container:
+        image: "{{inputs.parameters.ecr-registry}}/registry:{{inputs.parameters.image-tag}}"
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            cd /workspace
+            python /app/src/validate_data.py
+            echo "Validation complete!"
+            ls -lh artifacts/
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+        env:
+          - name: PYTHONUNBUFFERED
+            value: "1"

@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: template-train-rf
+  namespace: argo-workflows
+spec:
+  templates:
+    - name: train-rf
+      inputs:
+        parameters:
+          - name: ecr-registry
+          - name: image-tag
+      container:
+        image: "{{inputs.parameters.ecr-registry}}/registry:{{inputs.parameters.image-tag}}"
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            cd /workspace
+            python /app/src/train_rf.py
+            echo "Random Forest training complete!"
+            ls -lh artifacts/models/
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+        env:
+          - name: PYTHONUNBUFFERED
+            value: "1"

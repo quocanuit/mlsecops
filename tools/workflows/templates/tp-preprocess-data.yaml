@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: template-preprocess-data
+  namespace: argo-workflows
+spec:
+  templates:
+    - name: preprocess-data
+      inputs:
+        parameters:
+          - name: ecr-registry
+          - name: image-tag
+      container:
+        image: "{{inputs.parameters.ecr-registry}}/registry:{{inputs.parameters.image-tag}}"
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            cd /workspace
+            python /app/src/preprocess_data.py
+            echo "Preprocessing complete!"
+            ls -lh artifacts/preprocessed/
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
+        env:
+          - name: PYTHONUNBUFFERED
+            value: "1"

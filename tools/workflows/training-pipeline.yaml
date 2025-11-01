@@ -1,0 +1,88 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: mlsecops-training-pipeline-
+  namespace: argo-workflows
+spec:
+  entrypoint: main-pipeline
+  serviceAccountName: argo-workflow
+
+  volumeClaimTemplates:
+    - metadata:
+        name: workspace
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: gp2
+        resources:
+          requests:
+            storage: 5Gi
+
+  # Pipeline parameters
+  arguments:
+    parameters:
+      - name: image-tag
+        value: "v0.0.2"
+      - name: ecr-registry
+        value: "625715126488.dkr.ecr.us-east-1.amazonaws.com"
+
+  templates:
+    - name: main-pipeline
+      steps:
+        - - name: pull-data
+            templateRef:
+              name: template-pull-data
+              template: pull-data
+
+        # - - name: validate
+        #     templateRef:
+        #       name: template-validate-data
+        #       template: validate-data
+        #     arguments:
+        #       parameters:
+        #         - name: ecr-registry
+        #           value: "{{workflow.parameters.ecr-registry}}"
+        #         - name: image-tag
+        #           value: "validate_data-{{workflow.parameters.image-tag}}"
+
+        - - name: preprocess
+            templateRef:
+              name: template-preprocess-data
+              template: preprocess-data
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "preprocess_data-{{workflow.parameters.image-tag}}"
+
+        - - name: train-models
+            template: train-parallel
+
+        - - name: compare-models
+            templateRef:
+              name: template-compare-models
+              template: compare-models
+
+    - name: train-parallel
+      parallelism: 2
+      steps:
+        - - name: train-random-forest
+            templateRef:
+              name: template-train-rf
+              template: train-rf
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "train_rf-{{workflow.parameters.image-tag}}"
+          - name: train-xgboost
+            templateRef:
+              name: template-train-xgb
+              template: train-xgb
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "train_xgb-{{workflow.parameters.image-tag}}"

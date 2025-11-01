@@ -1,0 +1,53 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: template-pull-data
+  namespace: argo-workflows
+spec:
+  templates:
+    - name: pull-data
+      container:
+        image: "python:3.10-slim"
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+            echo "Installing dependencies..."
+            apt-get update -qq && apt-get install -y -qq git > /dev/null 2>&1
+            pip install --no-cache-dir --timeout 120 -q dvc[s3]
+
+            echo "Setting up workspace..."
+            cd /workspace
+
+            git config --global user.email "workflow@mlsecops.internal"
+            git config --global user.name "MLSecOps Workflow"
+            git init
+
+            mkdir -p .dvc data/raw
+
+            cat > .dvc/config << EOF
+            [core]
+                remote = storage
+            ['remote "storage"']
+                url = s3://mlsecops-fraud-dataset/
+            EOF
+
+            cat > data.dvc << EOF
+            outs:
+            - md5: e347f97d29f0e79e7364541b2a9da47d.dir
+              size: 226268128
+              nfiles: 5
+              hash: md5
+              path: data
+            EOF
+
+            echo "Pulling data from S3 via DVC..."
+            dvc pull
+
+            echo "Data pulled successfully!"
+            echo "Contents:"
+            ls -lh data/
+            ls -lh data/raw/ || echo "No raw directory yet"
+        volumeMounts:
+          - name: workspace
+            mountPath: /workspace
