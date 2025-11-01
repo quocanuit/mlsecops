@@ -27,13 +27,20 @@ jobs:
 
     - name: Process build information
       run: |
+        echo "=== Build Information ==="
         echo "Code version: ${{ github.server_url }}/${{ github.repository }}/tree/$(git rev-parse HEAD)"
         echo "Image name: ${{ env.IMAGE_NAME }}"
         echo "Triggered version tag: ${{ env.VERSION_TAG }}"
+        echo "=========================="
+
+    - name: Copy CI tools to src directory
+      run: |
+        cp tools/ci/* src/
+        mkdir -p models
 
     - name: Build Docker image
       run: |
-        docker build -f tools/ci/Dockerfile.${{ env.IMAGE_NAME }} -t ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} .
+        docker build -f src/Dockerfile.${{ env.IMAGE_NAME }} -t ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} .
 
     - name: Verify Docker image
       run: |
