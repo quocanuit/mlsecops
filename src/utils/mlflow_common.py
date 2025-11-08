@@ -18,6 +18,7 @@ def setup_mlflow(tracking_uri=None, experiment_name="mlsecops-fraud-detection"):
         return False
 
     # Get tracking URI from env or parameter
+    tracking_uri = tracking_uri or os.getenv("MLFLOW_TRACKING_URI")
 
     if not tracking_uri:
         return False
@@ -29,10 +30,9 @@ def setup_mlflow(tracking_uri=None, experiment_name="mlsecops-fraud-detection"):
         # Get or create experiment
         experiment = mlflow.get_experiment_by_name(experiment_name)
         if experiment is None:
-            experiment_id = mlflow.create_experiment(experiment_name)
+            mlflow.create_experiment(experiment_name)
             print(f"[MLflow] Created experiment: {experiment_name}")
         else:
-            experiment_id = experiment.experiment_id
             print(f"[MLflow] Using experiment: {experiment_name}")
 
         mlflow.set_experiment(experiment_name)

@@ -2,12 +2,14 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-COPY src/requirements.ci.txt .
+COPY src/requirements.train.txt .
 
-RUN pip install --no-cache-dir -r requirements.ci.txt
+RUN pip install --no-cache-dir -r requirements.train.txt
 
 COPY src/ ./src/
 
 ENV PYTHONPATH=/app/src
+
+ENV MLFLOW_TRACKING_URI=""
 
 CMD ["python", "src/train_rf.py"]
