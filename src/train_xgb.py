@@ -12,6 +12,15 @@ from utils.train_common import (
     save_model,
     save_training_report
 )
+from utils.mlflow_common import (
+    setup_mlflow,
+    start_run,
+    set_tag,
+    log_evaluation_metrics,
+    log_model_and_params,
+    log_training_report,
+    print_run_info
+)
 
 ROOT = Path(os.getcwd())
 RANDOM_STATE_VALUE = 42
@@ -43,24 +52,65 @@ def main():
     """Main execution function."""
     print("XGBOOST MODEL TRAINING")
 
-    # Load preprocessed data
-    X_train_resampled, y_train_resampled, X_test_transformed, y_test = load_preprocessed_data()
+    setup_mlflow()
 
-    # Train the model
-    model, y_test_pred, y_test_prob, train_time, prediction_time, metadata = train_model(
-        X_train_resampled, y_train_resampled, X_test_transformed
-    )
+    # Start MLflow run (no-op if MLflow disabled)
+    with start_run(run_name="xgboost_training"):
+        set_tag("model_type", "XGBoost")
+        set_tag("algorithm", "xgboost.XGBClassifier")
 
-    # Evaluate the model
-    results_default, results_fixed, fixed_threshold, report_default, report_fixed = evaluate_model(
-        "XGBoost", y_test, y_test_pred, y_test_prob, train_time, prediction_time, FIXED_FPR
-    )
+        # Load preprocessed data
+        X_train_resampled, y_train_resampled, X_test_transformed, y_test = load_preprocessed_data()
 
-    # Save model bundle
-    save_model(model, "XGBoost Classifier", fixed_threshold, FIXED_FPR, metadata, "xgb_model_bundle.pkl")
+        # Train the model
+        model, y_test_pred, y_test_prob, train_time, prediction_time, metadata = train_model(
+            X_train_resampled, y_train_resampled, X_test_transformed
+        )
 
-    # Save training report
-    save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, "training_report_xgb.json")
+        # Evaluate the model
+        results_default, results_fixed, fixed_threshold, report_default, report_fixed = evaluate_model(
+            "XGBoost", y_test, y_test_pred, y_test_prob, train_time, prediction_time, FIXED_FPR
+        )
+
+        # Extract metrics for MLflow logging
+        metrics_default = results_default.to_dict(orient='records')[0]
+        metrics_fixed = results_fixed.to_dict(orient='records')[0]
+
+        log_evaluation_metrics(
+            roc_auc=metrics_default["ROC-AUC Score"],
+            logloss=metrics_default["Log Loss"],
+            train_time=metrics_default["Training Time (s)"],
+            prediction_time=metrics_default["Prediction Time (s)"],
+            total_time=metrics_default["Total Time (s)"],
+            accuracy_default=metrics_default["Accuracy"],
+            prec_default=metrics_default["Precision"],
+            rec_default=metrics_default["Recall"],
+            f1_default=metrics_default["F1 Score"],
+            fpr_default=metrics_default["FPR@threshold"],
+            tpr_default=metrics_default["TPR@threshold"],
+            fixed_threshold=metrics_fixed["Decision Threshold"],
+            accuracy_fixed=metrics_fixed["Accuracy"],
+            prec_fixed=metrics_fixed["Precision@threshold"],
+            rec_fixed=metrics_fixed["Recall@threshold"],
+            f1_fixed=metrics_fixed["F1@threshold"],
+            fpr_at=metrics_fixed["FPR@threshold"],
+            tpr_at=metrics_fixed["TPR@threshold"]
+        )
+
+        # Save model bundle
+        model_path = save_model(model, "XGBoost Classifier", fixed_threshold, FIXED_FPR, metadata, "xgb_model_bundle.pkl")
+
+        # Log model to MLflow
+        log_model_and_params(model, "XGBoost Classifier", metadata, model_path)
+
+        # Save training report
+        save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, "training_report_xgb.json")
+
+        # Log report to MLflow
+        log_training_report(ROOT / "artifacts" / "training_report_xgb.json")
+
+        # Print run information
+        print_run_info()
 
     print("\nTraining completed successfully!")
 
