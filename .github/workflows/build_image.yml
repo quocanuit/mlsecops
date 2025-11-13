@@ -136,7 +136,7 @@ jobs:
             ;;
           validate_data)
             mkdir -p data/validated/
-            cp artifacts/validated_data/* data/validated/ 2>/dev/null || echo "No validated data files to copy"
+            cp artifacts/validated/* data/validated/ 2>/dev/null || echo "No validated data files to copy"
             ;;
           train_*)
             echo "Training completed - model saved in artifacts/models/"
