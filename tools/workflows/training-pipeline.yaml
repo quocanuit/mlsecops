@@ -24,6 +24,8 @@ spec:
         value: "v0.0.2"
       - name: ecr-registry
         value: "625715126488.dkr.ecr.us-east-1.amazonaws.com"
+      - name: mlflow-tracking-uri
+        value: "http://mlflow-service.production.svc.cluster.local:5000"
 
   templates:
     - name: main-pipeline
@@ -76,6 +78,8 @@ spec:
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
                   value: "train_rf-{{workflow.parameters.image-tag}}"
+                - name: mlflow-tracking-uri
+                  value: "{{workflow.parameters.mlflow-tracking-uri}}"
           - name: train-xgboost
             templateRef:
               name: template-train-xgb
@@ -86,3 +90,5 @@ spec:
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
                   value: "train_xgb-{{workflow.parameters.image-tag}}"
+                - name: mlflow-tracking-uri
+                  value: "{{workflow.parameters.mlflow-tracking-uri}}"
