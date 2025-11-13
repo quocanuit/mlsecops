@@ -14,7 +14,7 @@ RANDOM_STATE_VALUE = 42
 
 def preprocess_data():
     # Load data
-    df_original = pd.read_csv(f"{ROOT}/data/raw/Base.csv")
+    df_original = pd.read_csv(f"{ROOT}/data/validated/Base_validated.csv")
     print("df.shape:", df_original.shape)
 
     # Balance classes using downsampling
