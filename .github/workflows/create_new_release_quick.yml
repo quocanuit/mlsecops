@@ -1,0 +1,82 @@
+name: Create New Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+    strategy:
+      matrix:
+        image_name: [validate_data, preprocess_data, train_rf, train_xgb]
+    env:
+        VERSION_TAG: v0.0.1
+        IMAGE_NAME: ${{ matrix.image_name }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      with:
+        fetch-depth: 0
+        ref: ${{ github.ref }}
+
+    - name: Process build information
+      run: |
+        echo "=== Build Information ==="
+        echo "Code version: ${{ github.server_url }}/${{ github.repository }}/tree/$(git rev-parse HEAD)"
+        echo "Image name: ${{ env.IMAGE_NAME }}"
+        echo "Triggered version tag: ${{ env.VERSION_TAG }}"
+        echo "=========================="
+
+    - name: Copy CI tools to src directory
+      run: |
+        cp tools/ci/* src/
+        mkdir -p models
+
+    - name: Build Docker image
+      run: |
+        docker build -f src/Dockerfile.${{ env.IMAGE_NAME }} -t ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} .
+
+    - name: Verify Docker image
+      run: |
+        echo "Verifying ${{ env.IMAGE_NAME }} image..."
+        docker images | grep ${{ env.IMAGE_NAME }}
+
+        docker run --rm ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} python --version
+        docker run --rm ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} ls -la /app/src/
+
+        echo "Image ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} verified"
+
+    - name: Run Trivy security scan
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }}
+        format: 'table'
+        exit-code: '1'
+        ignore-unfixed: true
+        severity: 'CRITICAL,HIGH'
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@a03048d87541d1d9fcf2ecf528a4a65ba9bd7838
+      with:
+        role-to-assume: arn:aws:iam::625715126488:role/GithubActions
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076
+
+    - name: Tag and push Docker image to ECR
+      env:
+        ECR_REGISTRY: 625715126488.dkr.ecr.us-east-1.amazonaws.com
+        ECR_REPOSITORY: registry
+      run: |
+        echo "Tagging image for ECR..."
+        docker tag ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_NAME }}-${{ env.VERSION_TAG }}
+
+        echo "Pushing image to ECR..."
+        docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_NAME }}-${{ env.VERSION_TAG }}
+
+        echo "Successfully pushed ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} to ECR"

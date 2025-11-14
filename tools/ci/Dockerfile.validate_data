@@ -2,9 +2,9 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-COPY src/requirements.ci.txt .
+COPY src/requirements.validate_data.txt .
 
-RUN pip install --no-cache-dir -r requirements.ci.txt
+RUN pip install --no-cache-dir -r requirements.validate_data.txt
 
 COPY src/ ./src/
 
