@@ -30,3 +30,10 @@ spec:
             value: "1"
           - name: MLFLOW_TRACKING_URI
             value: "{{inputs.parameters.mlflow-tracking-uri}}"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "300m"
+          limits:
+            memory: "1Gi"
+            cpu: "800m"

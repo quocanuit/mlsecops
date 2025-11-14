@@ -25,7 +25,7 @@ spec:
       - name: ecr-registry
         value: "625715126488.dkr.ecr.us-east-1.amazonaws.com"
       - name: mlflow-tracking-uri
-        value: "http://mlflow-service.production.svc.cluster.local:5000"
+        value: "http://mlflow.mlflow.svc.cluster.local:5000"
 
   templates:
     - name: main-pipeline
@@ -60,10 +60,10 @@ spec:
         - - name: train-models
             template: train-parallel
 
-        - - name: compare-models
-            templateRef:
-              name: template-compare-models
-              template: compare-models
+        # - - name: compare-models
+        #     templateRef:
+        #       name: template-compare-models
+        #       template: compare-models
 
     - name: train-parallel
       parallelism: 2
