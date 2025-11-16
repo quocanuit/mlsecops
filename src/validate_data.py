@@ -8,7 +8,6 @@ from pathlib import Path
 
 
 EXPECTED_SCHEMA: Dict[str, str] = {
-    #"case_id": "int64",
     "fraud_bool": "int64",
     "income": "float64",
     "name_email_similarity": "float64",
@@ -17,14 +16,12 @@ EXPECTED_SCHEMA: Dict[str, str] = {
     "customer_age": "int64",
     "days_since_request": "float64",
     "intended_balcon_amount": "float64",
-    "payment_type": "object",
     "zip_count_4w": "int64",
     "velocity_6h": "float64",
     "velocity_24h": "float64",
     "velocity_4w": "float64",
     "bank_branch_count_8w": "int64",
     "date_of_birth_distinct_emails_4w": "int64",
-    "employment_status": "object",
     "credit_risk_score": "int64",
     "email_is_free": "int64",
     "housing_status": "object",
@@ -41,45 +38,38 @@ EXPECTED_SCHEMA: Dict[str, str] = {
     "device_distinct_emails_8w": "int64",
     "device_fraud_count": "int64",
     "month": "int64",
-    #"model_score": "float64",
-    #"batch": "int64",
-    #"assignment": "object",
-    #"decision": "float64",
 }
 
 CONSTRAINTS = {
     "fraud_bool": {"allowed": {0, 1}},
-    "customer_age": {"min": 15, "max": 120},
+    "customer_age": {"min": 10, "max": 90},
     "income": {"min": 0, "max": 1},
     "name_email_similarity": {"min": 0, "max": 1},
-    "prev_address_months_count": {"min": -1},
-    "current_address_months_count": {"min": -1},
+    "prev_address_months_count": {"min": -1, "max": 380},
+    "current_address_months_count": {"min": -1, "max": 406},
     "days_since_request": {"min": 0},
-    "intended_balcon_amount": {"min": -1},
-    "payment_type": {"allowed": {"AA", "AB", "AC", "AD"}},
+    "intended_balcon_amount": {"min": -15, "max": 108},
     "zip_count_4w": {"min": 1},
-    "velocity_6h": {"min": 0},
-    "velocity_24h": {"min": 0},
-    "velocity_4w": {"min": 0},
-    "bank_branch_count_8w": {"min": 0},
-    "date_of_birth_distinct_emails_4w": {"min": 0},
-    "employment_status": {"allowed": {"CA", "CB", "CC", "CD", "CE", "CF"}},
-    "credit_risk_score": {"min": -176},
+    "velocity_6h": {"min": -211, "max": 24763},
+    "velocity_24h": {"min": 1329, "max": 9527},
+    "velocity_4w": {"min": 2779, "max": 7043},
+    "bank_branch_count_8w": {"min": 0, "max": 2521},
+    "date_of_birth_distinct_emails_4w": {"min": 0, "max": 42    },
+    "credit_risk_score": {"min": -176, "max": 387},
     "email_is_free": {"allowed": {0, 1}},
     "phone_home_valid": {"allowed": {0, 1}},
     "phone_mobile_valid": {"allowed": {0, 1}},
-    "bank_months_count": {"min": -1},
+    "bank_months_count": {"min": -1, "max": 31},
     "has_other_cards": {"allowed": {0, 1}},
-    "proposed_credit_limit": {"min": 0},
+    "proposed_credit_limit": {"min": 190, "max": 2000},
     "foreign_request": {"allowed": {0, 1}},
-    "source": {"allowed": {"INTERNET", "APP"}},
+    "source": {"allowed": {"INTERNET", "APP", "TELEAPP"}},
     "keep_alive_session": {"allowed": {0, 1}},
-    "session_length_in_minutes": {"min": -1},
+    "session_length_in_minutes": {"min": -1, "max": 107},
     "device_os": {"allowed": {"windows", "macintosh", "linux", "x11", "other"}},
-    "device_distinct_emails_8w": {"min": 0},
+    "device_distinct_emails_8w": {"min": 0, "max": 3},
     "device_fraud_count": {"min": 0, "max": 1},
-    "month": {"min": 1, "max": 12},
-    #"decision": {"min": 0.0, "max": 1.0},
+    "month": {"min": 0, "max": 7},
 }
 
 
@@ -154,7 +144,7 @@ def build_valid_mask(df: pd.DataFrame) -> pd.Series:
 
 
 def main():
-    ROOT = Path(os.getcwd())
+    ROOT = Path(__file__).resolve().parent
     data_file = ROOT / "data" / "raw" / "Base.csv"
 
     print(f"Project ROOT: {ROOT}")
@@ -180,7 +170,7 @@ def main():
         "dtype_errors_summary": dtype_errors,
         "missing_values_summary": {str(k): int(v) for k, v in missing[missing > 0].items()},
         "invalid_rows_count": int((~valid_mask).sum()),
-        "fraud_bool_distribution": fraud_distribution,  # ✅ after cleaning
+        "fraud_bool_distribution": fraud_distribution,
     }
 
     for col, typ in EXPECTED_SCHEMA.items():
@@ -194,10 +184,10 @@ def main():
         except Exception as e:
             print(f"[WARN] Column {col} casting skipped ({e})")
 
-    output_dir = ROOT / "artifacts" / "validated"
+    output_dir = ROOT / "artifacts" / "validated_data"
     os.makedirs(output_dir, exist_ok=True)
 
-    output_file = output_dir / "Base_validated.csv"
+    output_file = output_dir / "train_processed.csv"
     cleaned.to_csv(output_file, index=False)
 
     report_path = output_dir.parent / "validation_report.json"
