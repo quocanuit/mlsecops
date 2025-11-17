@@ -117,13 +117,10 @@ def main():
 
         # Log model to MLflow
         log_model_and_params(
-            model, "XGBoost Classifier", metadata, model_path,
+            model, "Random Forest Classifier", metadata, model_path,
             mlflow_model_name="random_forest_model",
             signature=sig, input_example=input_example
         )
-
-        # Log model to MLflow
-        log_model_and_params(model, "Random Forest Classifier", metadata, model_path)
 
         # Save training report
         save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, "training_report_rf.json")

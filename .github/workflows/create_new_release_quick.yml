@@ -7,6 +7,10 @@ on:
         description: 'Branch to release from'
         required: true
         default: 'master'
+      version_tag:
+        description: 'Version tag (e.g., v0.0.1)'
+        required: true
+        default: 'v0.0.1'
 
 jobs:
   create-release:
@@ -18,7 +22,7 @@ jobs:
       matrix:
         image_name: [validate_data, preprocess_data, train_rf, train_xgb]
     env:
-        VERSION_TAG: v0.0.1
+        VERSION_TAG: ${{ github.event.inputs.version_tag }}
         IMAGE_NAME: ${{ matrix.image_name }}
 
     steps:
