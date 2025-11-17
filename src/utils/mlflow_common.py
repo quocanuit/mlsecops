@@ -10,7 +10,7 @@ except ImportError:
 
 def is_mlflow_enabled():
     """Check if MLflow tracking is enabled via environment variable"""
-    return os.getenv("MLFLOW_TRACKING_URI") is not None
+    return bool(MLFLOW_AVAILABLE and os.getenv("MLFLOW_TRACKING_URI"))
 
 
 def setup_mlflow(tracking_uri=None, experiment_name="mlsecops-fraud-detection"):
@@ -83,7 +83,9 @@ def log_evaluation_metrics(
         print(f"[MLflow] Warning: Could not log metrics - {e}")
 
 
-def log_model_and_params(model, model_name, metadata, model_path):
+def log_model_and_params(model, model_name, metadata, model_path,
+                          mlflow_model_name: str = "model",
+                          signature=None, input_example=None):
     if not is_mlflow_enabled():
         return
 
@@ -104,9 +106,19 @@ def log_model_and_params(model, model_name, metadata, model_path):
 
         # Log the models
         if "XGBoost" in model_name or "xgb" in str(type(model)).lower():
-            mlflow.xgboost.log_model(model, "model")
+            mlflow.xgboost.log_model(
+                model,
+                name=mlflow_model_name,
+                signature=signature,
+                input_example=input_example
+            )
         else:
-            mlflow.sklearn.log_model(model, "model")
+            mlflow.sklearn.log_model(
+                model,
+                name=mlflow_model_name,
+                signature=signature,
+                input_example=input_example
+            )
 
         # Log the complete bundle as artifact
         mlflow.log_artifact(str(model_path), "model_bundle")

@@ -9,6 +9,7 @@ import sys
 import os
 
 ROOT = Path(os.getcwd())
+ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
 RANDOM_STATE_VALUE = 42
 
 
@@ -186,7 +187,7 @@ def save_preprocessed_data(X_train, y_train, X_test, y_test):
 
 def save_report(report):
     # Create artifacts directory
-    artifacts_dir = ROOT / "artifacts"
+    artifacts_dir = ARTIFACTS_DIR
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     # Save report as JSON

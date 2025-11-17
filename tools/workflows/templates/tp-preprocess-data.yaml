@@ -26,6 +26,8 @@ spec:
         env:
           - name: PYTHONUNBUFFERED
             value: "1"
+          - name: ARTIFACTS_DIR
+            value: "/workspace/artifacts"
         resources:
           requests:
             memory: "512Mi"
