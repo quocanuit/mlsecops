@@ -21,6 +21,7 @@ from utils.mlflow_common import (
     log_evaluation_metrics,
     log_model_and_params,
     log_training_report,
+    log_dataset,
     print_run_info
 )
 
@@ -63,6 +64,9 @@ def main():
 
         # Load preprocessed data
         X_train_resampled, y_train_resampled, X_test_transformed, y_test = load_preprocessed_data()
+
+        # Log dataset information
+        log_dataset(X_train_resampled, y_train_resampled, X_test_transformed, y_test, "fraud_detection")
 
         # Train the model
         model, y_test_pred, y_test_prob, train_time, prediction_time, metadata = train_model(

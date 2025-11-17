@@ -1,15 +1,16 @@
 import os
+import hashlib
 try:
     import mlflow
     import mlflow.sklearn
     import mlflow.xgboost
+    from mlflow.data.pandas_dataset import PandasDataset
     MLFLOW_AVAILABLE = True
 except ImportError:
     MLFLOW_AVAILABLE = False
 
 
 def is_mlflow_enabled():
-    """Check if MLflow tracking is enabled via environment variable"""
     return bool(MLFLOW_AVAILABLE and os.getenv("MLFLOW_TRACKING_URI"))
 
 
@@ -140,7 +141,6 @@ def log_training_report(report_path):
 
 
 def start_run(run_name=None):
-    """Start MLflow run if enabled, otherwise return dummy context"""
     if is_mlflow_enabled() and MLFLOW_AVAILABLE:
         try:
             return mlflow.start_run(run_name=run_name)
@@ -155,12 +155,44 @@ def start_run(run_name=None):
 
 
 def set_tag(key, value):
-    """Set MLflow tag if enabled"""
     if is_mlflow_enabled():
         try:
             mlflow.set_tag(key, value)
         except Exception as e:
             print(f"[MLflow] Warning: Could not set tag - {e}")
+
+
+def log_dataset(X_train, y_train, X_test, y_test, dataset_name="training_data"):
+    if not is_mlflow_enabled():
+        return
+
+    try:
+        import pandas as pd
+
+        # Create dataframes for logging
+        train_df = pd.DataFrame(X_train)
+        train_df['target'] = y_train
+
+        test_df = pd.DataFrame(X_test)
+        test_df['target'] = y_test
+
+        # Log training dataset
+        train_dataset = PandasDataset(
+            df=train_df,
+            name=f"{dataset_name}_train"
+        )
+        mlflow.log_input(train_dataset, context="training")
+
+        # Log test dataset
+        test_dataset = PandasDataset(
+            df=test_df,
+            name=f"{dataset_name}_test"
+        )
+        mlflow.log_input(test_dataset, context="evaluation")
+
+        print(f"[MLflow] Logged datasets with {train_df.shape[0]} train and {test_df.shape[0]} test samples")
+    except Exception as e:
+        print(f"[MLflow] Warning: Could not log dataset - {e}")
 
 
 def print_run_info():
