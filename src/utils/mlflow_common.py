@@ -179,6 +179,7 @@ def log_dataset(X_train, y_train, X_test, y_test, dataset_name="training_data"):
         # Log training dataset
         train_dataset = PandasDataset(
             df=train_df,
+            source=f"{dataset_name}_train",
             name=f"{dataset_name}_train"
         )
         mlflow.log_input(train_dataset, context="training")
@@ -186,6 +187,7 @@ def log_dataset(X_train, y_train, X_test, y_test, dataset_name="training_data"):
         # Log test dataset
         test_dataset = PandasDataset(
             df=test_df,
+            source=f"{dataset_name}_test",
             name=f"{dataset_name}_test"
         )
         mlflow.log_input(test_dataset, context="evaluation")
