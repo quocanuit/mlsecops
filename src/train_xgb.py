@@ -30,7 +30,7 @@ FIXED_FPR = 0.05
 
 
 def train_model(X_train, y_train, X_test):
-    model = xgb.XGBClassifier(random_state=RANDOM_STATE_VALUE, use_label_encoder=False, eval_metric='logloss')
+    model = xgb.XGBClassifier(random_state=RANDOM_STATE_VALUE, eval_metric='logloss')
 
     print("Training XGBoost model...")
     start_time = time.time()
