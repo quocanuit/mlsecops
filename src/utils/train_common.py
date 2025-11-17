@@ -19,7 +19,7 @@ from sklearn.metrics import (
 )
 
 ROOT = Path(os.getcwd())
-
+ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
 
 def load_preprocessed_data():
     preprocessed_data_dir = ROOT / "data" / "preprocessed"
@@ -152,7 +152,7 @@ def evaluate_model(model_name, y_test, y_test_pred, y_test_prob, train_time, pre
 
 
 def save_model(model, model_name, fixed_threshold, fixed_fpr, metadata, bundle_filename):
-    models_dir = ROOT / "artifacts" / "models"
+    models_dir = ARTIFACTS_DIR / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
     # Create model bundle with metadata
@@ -181,7 +181,7 @@ def save_model(model, model_name, fixed_threshold, fixed_fpr, metadata, bundle_f
 
 
 def save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, report_filename):
-    artifacts_dir = ROOT / "artifacts"
+    artifacts_dir = ARTIFACTS_DIR
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     # Save results as JSON with metadata

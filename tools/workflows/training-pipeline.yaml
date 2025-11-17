@@ -7,6 +7,17 @@ spec:
   entrypoint: main-pipeline
   serviceAccountName: argo-workflow
 
+  podSpecPatch: |
+    containers:
+    - name: main
+      env:
+      - name: AWS_ROLE_ARN
+        value: ""
+      - name: AWS_WEB_IDENTITY_TOKEN_FILE
+        value: ""
+      - name: AWS_EC2_METADATA_DISABLED
+        value: "false"
+
   volumeClaimTemplates:
     - metadata:
         name: workspace
@@ -21,7 +32,7 @@ spec:
   arguments:
     parameters:
       - name: image-tag
-        value: "v0.0.2"
+        value: "v0.0.1"
       - name: ecr-registry
         value: "625715126488.dkr.ecr.us-east-1.amazonaws.com"
       - name: mlflow-tracking-uri

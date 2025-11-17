@@ -4,13 +4,15 @@ from pathlib import Path
 import os
 
 from sklearn.ensemble import RandomForestClassifier
+from mlflow.models import infer_signature
 
 from utils.train_common import (
     load_preprocessed_data,
     create_metadata,
     evaluate_model,
     save_model,
-    save_training_report
+    save_training_report,
+    ARTIFACTS_DIR
 )
 from utils.mlflow_common import (
     setup_mlflow,
@@ -19,6 +21,7 @@ from utils.mlflow_common import (
     log_evaluation_metrics,
     log_model_and_params,
     log_training_report,
+    log_dataset,
     print_run_info
 )
 
@@ -62,6 +65,9 @@ def main():
         # Load preprocessed data
         X_train_resampled, y_train_resampled, X_test_transformed, y_test = load_preprocessed_data()
 
+        # Log dataset information
+        log_dataset(X_train_resampled, y_train_resampled, X_test_transformed, y_test, "fraud_detection")
+
         # Train the model
         model, y_test_pred, y_test_prob, train_time, prediction_time, metadata = train_model(
             X_train_resampled, y_train_resampled, X_test_transformed
@@ -100,6 +106,22 @@ def main():
         # Save model bundle
         model_path = save_model(model, "Random Forest Classifier", fixed_threshold, FIXED_FPR, metadata, "rf_model_bundle.pkl")
 
+        try:
+            sig = infer_signature(
+                X_train_resampled[:100],
+                model.predict_proba(X_train_resampled[:100])[:, 1]
+            )
+        except Exception:
+            sig = None
+        input_example = X_train_resampled[:5]
+
+        # Log model to MLflow
+        log_model_and_params(
+            model, "XGBoost Classifier", metadata, model_path,
+            mlflow_model_name="random_forest_model",
+            signature=sig, input_example=input_example
+        )
+
         # Log model to MLflow
         log_model_and_params(model, "Random Forest Classifier", metadata, model_path)
 
@@ -107,7 +129,7 @@ def main():
         save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, "training_report_rf.json")
 
         # Log report to MLflow
-        log_training_report(ROOT / "artifacts" / "training_report_rf.json")
+        log_training_report(ARTIFACTS_DIR / "training_report_rf.json")
 
         # Print run information
         print_run_info()
