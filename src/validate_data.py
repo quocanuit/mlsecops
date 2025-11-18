@@ -144,7 +144,7 @@ def build_valid_mask(df: pd.DataFrame) -> pd.Series:
 
 
 def main():
-    ROOT = Path(__file__).resolve().parent
+    ROOT = Path(os.getcwd())
     data_file = ROOT / "data" / "raw" / "Base.csv"
 
     print(f"Project ROOT: {ROOT}")
@@ -170,7 +170,7 @@ def main():
         "dtype_errors_summary": dtype_errors,
         "missing_values_summary": {str(k): int(v) for k, v in missing[missing > 0].items()},
         "invalid_rows_count": int((~valid_mask).sum()),
-        "fraud_bool_distribution": fraud_distribution,
+        "fraud_bool_distribution": fraud_distribution,  # ✅ after cleaning
     }
 
     for col, typ in EXPECTED_SCHEMA.items():
@@ -184,10 +184,10 @@ def main():
         except Exception as e:
             print(f"[WARN] Column {col} casting skipped ({e})")
 
-    output_dir = ROOT / "artifacts" / "validated_data"
+    output_dir = ROOT / "artifacts" / "validated"
     os.makedirs(output_dir, exist_ok=True)
 
-    output_file = output_dir / "train_processed.csv"
+    output_file = output_dir / "Base_validated.csv"
     cleaned.to_csv(output_file, index=False)
 
     report_path = output_dir.parent / "validation_report.json"
