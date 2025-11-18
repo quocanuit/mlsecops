@@ -169,33 +169,31 @@ def log_dataset(X_train, y_train, X_test, y_test, dataset_name="training_data"):
 
     try:
         import pandas as pd
-
+        
         # Create dataframes for logging
         train_df = pd.DataFrame(X_train)
         train_df['target'] = y_train
-
+        
         test_df = pd.DataFrame(X_test)
         test_df['target'] = y_test
-
-        # Log training dataset using from_pandas method
-        train_dataset = PandasDataset.from_pandas(
-            train_df,
+        
+        # Log training dataset
+        train_dataset = PandasDataset(
+            df=train_df,
             name=f"{dataset_name}_train"
         )
         mlflow.log_input(train_dataset, context="training")
-
-        # Log test dataset using from_pandas method
-        test_dataset = PandasDataset.from_pandas(
-            test_df,
+        
+        # Log test dataset
+        test_dataset = PandasDataset(
+            df=test_df,
             name=f"{dataset_name}_test"
         )
         mlflow.log_input(test_dataset, context="evaluation")
-
+        
         print(f"[MLflow] Logged datasets with {train_df.shape[0]} train and {test_df.shape[0]} test samples")
     except Exception as e:
         print(f"[MLflow] Warning: Could not log dataset - {e}")
-
-
 def print_run_info():
     if not is_mlflow_enabled():
         return
