@@ -163,6 +163,7 @@ def set_tag(key, value):
 
 
 def log_dataset(X_train, y_train, X_test, y_test, dataset_name="training_data"):
+    """Log dataset information to MLflow using the Dataset API"""
     if not is_mlflow_enabled():
         return
 
@@ -176,18 +177,16 @@ def log_dataset(X_train, y_train, X_test, y_test, dataset_name="training_data"):
         test_df = pd.DataFrame(X_test)
         test_df['target'] = y_test
 
-        # Log training dataset
-        train_dataset = PandasDataset(
-            df=train_df,
-            source=f"{dataset_name}_train",
+        # Log training dataset using from_pandas method
+        train_dataset = PandasDataset.from_pandas(
+            train_df,
             name=f"{dataset_name}_train"
         )
         mlflow.log_input(train_dataset, context="training")
 
-        # Log test dataset
-        test_dataset = PandasDataset(
-            df=test_df,
-            source=f"{dataset_name}_test",
+        # Log test dataset using from_pandas method
+        test_dataset = PandasDataset.from_pandas(
+            test_df,
             name=f"{dataset_name}_test"
         )
         mlflow.log_input(test_dataset, context="evaluation")
