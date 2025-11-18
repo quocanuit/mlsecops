@@ -5,6 +5,7 @@ try:
     import mlflow.sklearn
     import mlflow.xgboost
     from mlflow.data.pandas_dataset import PandasDataset
+    from mlflow.data.sources import PythonDataSource
     MLFLOW_AVAILABLE = True
 except ImportError:
     MLFLOW_AVAILABLE = False
@@ -177,9 +178,20 @@ def log_dataset(X_train, y_train, X_test, y_test, dataset_name="training_data"):
         test_df = pd.DataFrame(X_test)
         test_df['target'] = y_test
         
+        # Create data source
+        train_source = PythonDataSource(
+            name=f"{dataset_name}_train",
+            uri=f"{dataset_name}_train"
+        )
+        test_source = PythonDataSource(
+            name=f"{dataset_name}_test",
+            uri=f"{dataset_name}_test"
+        )
+        
         # Log training dataset
         train_dataset = PandasDataset(
             df=train_df,
+            source=train_source,
             name=f"{dataset_name}_train"
         )
         mlflow.log_input(train_dataset, context="training")
@@ -187,6 +199,7 @@ def log_dataset(X_train, y_train, X_test, y_test, dataset_name="training_data"):
         # Log test dataset
         test_dataset = PandasDataset(
             df=test_df,
+            source=test_source,
             name=f"{dataset_name}_test"
         )
         mlflow.log_input(test_dataset, context="evaluation")
