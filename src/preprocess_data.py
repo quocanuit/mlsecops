@@ -11,6 +11,8 @@ import os
 ROOT = Path(os.getcwd())
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
 RANDOM_STATE_VALUE = 42
+TRAIN_WINDOW = 6
+TEST_WINDOW = 2
 
 
 def preprocess_data():
@@ -42,9 +44,15 @@ def preprocess_data():
         ]
     )
 
+    max_month = df_balanced['month'].max()
     # Split data by month
-    train_data = df_balanced[df_balanced['month'].between(0, 5)]
-    test_data = df_balanced[df_balanced['month'].between(6, 7)]
+    train_start = max_month - (TRAIN_WINDOW + TEST_WINDOW) + 1
+    train_end = max_month - TEST_WINDOW
+    test_start = train_end + 1
+    test_end = max_month
+
+    train_data = df_balanced[df_balanced['month'].between(train_start, train_end)]
+    test_data = df_balanced[df_balanced['month'].between(test_start, test_end)]
 
     train_data = train_data.drop(columns=['month'])
     test_data = test_data.drop(columns=['month'])
@@ -80,21 +88,31 @@ def preprocess_data():
         X_test_transformed=X_test_transformed,
         y_test=y_test,
         categorical_features=categorical_features,
-        numerical_features=numerical_features
+        numerical_features=numerical_features,
+        train_start=train_start,
+        train_end=train_end,
+        test_start=test_start,
+        test_end=test_end
     )
 
     return X_train_resampled, y_train_resampled, X_test_transformed, y_test, report
 
 
-def generate_report(df_original, df_balanced, X_train_original, y_train_original,
-                                   X_train_resampled, y_train_resampled, X_test_transformed,
-                                   y_test, categorical_features, numerical_features):
+def generate_report(
+        df_original, df_balanced,
+        X_train_original, y_train_original,
+        X_train_resampled, y_train_resampled,
+        X_test_transformed, y_test,
+        categorical_features, numerical_features,
+        train_start, train_end, test_start, test_end):
 
     report = {
         "configurations": {
             "random_state": RANDOM_STATE_VALUE,
-            "train_months": "0-5",
-            "test_months": "6-7",
+            "train_months": f"{train_start}-{train_end}",
+            "test_months": f"{test_start}-{test_end}",
+            "train_window_months": TRAIN_WINDOW,
+            "test_window_months": TEST_WINDOW,
             "balance_method": "downsampling",
             "oversampling_method": "SMOTE",
             "scaler": "StandardScaler",
@@ -143,9 +161,18 @@ def generate_report(df_original, df_balanced, X_train_original, y_train_original
             "fraud_rate": float(y_test.mean())
         },
         "data_split": {
-            "train_test_ratio": float(X_train_resampled.shape[0] / (X_train_resampled.shape[0] + X_test_transformed.shape[0])),
-            "train_percentage": float(X_train_resampled.shape[0] / (X_train_resampled.shape[0] + X_test_transformed.shape[0]) * 100),
-            "test_percentage": float(X_test_transformed.shape[0] / (X_train_resampled.shape[0] + X_test_transformed.shape[0]) * 100)
+            "train_test_ratio": float(
+                X_train_resampled.shape[0] /
+                (X_train_resampled.shape[0] + X_test_transformed.shape[0])
+            ),
+            "train_percentage": float(
+                X_train_resampled.shape[0] /
+                (X_train_resampled.shape[0] + X_test_transformed.shape[0]) * 100
+            ),
+            "test_percentage": float(
+                X_test_transformed.shape[0] /
+                (X_train_resampled.shape[0] + X_test_transformed.shape[0]) * 100
+            )
         }
     }
 
