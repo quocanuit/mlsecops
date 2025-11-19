@@ -26,3 +26,14 @@ spec:
         env:
           - name: PYTHONUNBUFFERED
             value: "1"
+          - name: ARTIFACTS_DIR
+            value: "/workspace/artifacts"
+          - name: DATA_DIR_RAW
+            value: "/workspace/data/raw"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"

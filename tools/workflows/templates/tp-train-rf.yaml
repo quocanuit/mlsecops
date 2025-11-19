@@ -32,6 +32,8 @@ spec:
             value: "{{inputs.parameters.mlflow-tracking-uri}}"
           - name: ARTIFACTS_DIR
             value: "/workspace/artifacts"
+          - name: PREPROCESSED_DIR
+            value: "/workspace/artifacts/preprocessed"
         resources:
           requests:
             memory: "512Mi"

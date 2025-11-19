@@ -145,7 +145,10 @@ def build_valid_mask(df: pd.DataFrame) -> pd.Series:
 
 def main():
     ROOT = Path(os.getcwd())
-    data_file = ROOT / "data" / "raw" / "Base.csv"
+    ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
+    DATA_DIR_RAW = Path(os.getenv("DATA_DIR_RAW", str(ROOT / "data" / "raw")))
+
+    data_file = DATA_DIR_RAW / "Base.csv"
 
     print(f"Project ROOT: {ROOT}")
     if not data_file.exists():
@@ -184,7 +187,7 @@ def main():
         except Exception as e:
             print(f"[WARN] Column {col} casting skipped ({e})")
 
-    output_dir = ROOT / "artifacts" / "validated"
+    output_dir = ARTIFACTS_DIR / "validated"
     os.makedirs(output_dir, exist_ok=True)
 
     output_file = output_dir / "Base_validated.csv"

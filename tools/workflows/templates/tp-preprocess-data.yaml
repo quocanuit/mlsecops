@@ -28,6 +28,10 @@ spec:
             value: "1"
           - name: ARTIFACTS_DIR
             value: "/workspace/artifacts"
+          - name: VALIDATED_DIR
+            value: "/workspace/artifacts/validated"
+          - name: PREPROCESSED_DIR
+            value: "/workspace/artifacts/preprocessed"
         resources:
           requests:
             memory: "512Mi"

@@ -10,6 +10,8 @@ import os
 
 ROOT = Path(os.getcwd())
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
+VALIDATED_DIR = Path(os.getenv("VALIDATED_DIR", str(ROOT / "data" / "validated")))
+PREPROCESSED_DIR = Path(os.getenv("PREPROCESSED_DIR", str(ROOT / "artifacts" / "preprocessed")))
 RANDOM_STATE_VALUE = 42
 TRAIN_WINDOW = 6
 TEST_WINDOW = 2
@@ -17,7 +19,7 @@ TEST_WINDOW = 2
 
 def preprocess_data():
     # Load data
-    df_original = pd.read_csv(f"{ROOT}/data/validated/Base_validated.csv")
+    df_original = pd.read_csv(VALIDATED_DIR / "Base_validated.csv")
     print("df.shape:", df_original.shape)
 
     # Balance classes using downsampling
@@ -181,7 +183,7 @@ def generate_report(
 
 def save_preprocessed_data(X_train, y_train, X_test, y_test):
     # Create preprocessed_data directory
-    preprocessed_data_dir = ROOT / "artifacts" / "preprocessed"
+    preprocessed_data_dir = PREPROCESSED_DIR
     preprocessed_data_dir.mkdir(parents=True, exist_ok=True)
 
     n_features = X_train.shape[1]

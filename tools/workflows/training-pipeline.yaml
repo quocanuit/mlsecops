@@ -41,21 +41,21 @@ spec:
   templates:
     - name: main-pipeline
       steps:
-        - - name: pull-data
+        - - name: prepare-data
             templateRef:
-              name: template-pull-data
-              template: pull-data
+              name: template-prepare-data
+              template: prepare-data
 
-        # - - name: validate
-        #     templateRef:
-        #       name: template-validate-data
-        #       template: validate-data
-        #     arguments:
-        #       parameters:
-        #         - name: ecr-registry
-        #           value: "{{workflow.parameters.ecr-registry}}"
-        #         - name: image-tag
-        #           value: "validate_data-{{workflow.parameters.image-tag}}"
+        - - name: validate
+            templateRef:
+              name: template-validate-data
+              template: validate-data
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "validate_data-{{workflow.parameters.image-tag}}"
 
         - - name: preprocess
             templateRef:

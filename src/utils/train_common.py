@@ -22,17 +22,20 @@ ROOT = Path(os.getcwd())
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
 
 def load_preprocessed_data():
-    preprocessed_data_dir = ROOT / "data" / "preprocessed"
+    legacy_dir = ROOT / "data" / "preprocessed"
+    env_dir = os.getenv("PREPROCESSED_DIR", "").strip()
+    base_dir = Path(env_dir) if env_dir else legacy_dir
 
-    X_train_resampled = pd.read_csv(preprocessed_data_dir / "X_train_resampled.csv").values
-    y_train_resampled = pd.read_csv(preprocessed_data_dir / "y_train_resampled.csv").values.ravel()
-    X_test_transformed = pd.read_csv(preprocessed_data_dir / "X_test_transformed.csv").values
-    y_test = pd.read_csv(preprocessed_data_dir / "y_test.csv").values.ravel()
+    X_train_resampled = pd.read_csv(base_dir / "X_train_resampled.csv").values
+    y_train_resampled = pd.read_csv(base_dir / "y_train_resampled.csv").values.ravel()
+    X_test_transformed = pd.read_csv(base_dir / "X_test_transformed.csv").values
+    y_test = pd.read_csv(base_dir / "y_test.csv").values.ravel()
 
-    print(f"Loaded X_train_resampled: {X_train_resampled.shape}")
-    print(f"Loaded y_train_resampled: {y_train_resampled.shape}")
-    print(f"Loaded X_test_transformed: {X_test_transformed.shape}")
-    print(f"Loaded y_test: {y_test.shape}")
+    print(f"[load_preprocessed_data] Using dir: {base_dir}")
+    print(f"  X_train_resampled: {X_train_resampled.shape}")
+    print(f"  y_train_resampled: {y_train_resampled.shape}")
+    print(f"  X_test_transformed: {X_test_transformed.shape}")
+    print(f"  y_test: {y_test.shape}")
 
     return X_train_resampled, y_train_resampled, X_test_transformed, y_test
 
