@@ -3,5 +3,5 @@ numpy==2.2.6
 scikit-learn==1.7.2
 xgboost==3.1.1
 mlflow==3.5.1
-joblib
-boto3
+joblib==1.5.2
+boto3==1.41.0

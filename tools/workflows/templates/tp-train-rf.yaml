@@ -20,7 +20,7 @@ spec:
         args:
           - |
             set -e
-            
+
             # Download preprocessed data from S3
             echo "Downloading preprocessed data from S3..."
             python /app/src/utils/workflows_artifacts_handler.py \
@@ -30,14 +30,14 @@ spec:
               --s3-prefix "artifacts/preprocessed" \
               --local-dir "/workspace/artifacts/preprocessed" \
               --pattern "*.csv"
-            
+
             echo "Running Random Forest training..."
             cd /workspace
             python /app/src/train_rf.py
-            
+
             echo "Training complete! Uploading models..."
             ls -lh artifacts/models/
-            
+
             # Upload models to S3
             python /app/src/utils/workflows_artifacts_handler.py \
               --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
@@ -46,8 +46,8 @@ spec:
               --local-dir "/workspace/artifacts/models" \
               --s3-prefix "artifacts/models" \
               --pattern "*rf*"
-            
-            echo "✓ Random Forest model uploaded to S3"
+
+            echo "Random Forest model uploaded to S3"
         env:
           - name: PYTHONUNBUFFERED
             value: "1"

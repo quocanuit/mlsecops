@@ -18,7 +18,7 @@ spec:
         args:
           - |
             set -e
-            
+
             # Download validated data from S3
             echo "Downloading validated data from S3..."
             python /app/src/utils/workflows_artifacts_handler.py \
@@ -28,14 +28,14 @@ spec:
               --s3-prefix "artifacts/validated" \
               --local-dir "/workspace/artifacts/validated" \
               --pattern "*.csv"
-            
+
             echo "Running preprocessing..."
             cd /workspace
             python /app/src/preprocess_data.py
-            
+
             echo "Preprocessing complete! Uploading artifacts..."
             ls -lh artifacts/preprocessed/
-            
+
             # Upload preprocessed data to S3
             python /app/src/utils/workflows_artifacts_handler.py \
               --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
@@ -44,8 +44,8 @@ spec:
               --local-dir "/workspace/artifacts/preprocessed" \
               --s3-prefix "artifacts/preprocessed" \
               --pattern "*.csv"
-            
-            echo "✓ Preprocessed data uploaded to S3"
+
+            echo "Preprocessed data uploaded to S3"
         env:
           - name: PYTHONUNBUFFERED
             value: "1"

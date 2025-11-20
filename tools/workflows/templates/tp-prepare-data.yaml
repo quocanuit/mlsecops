@@ -38,6 +38,5 @@ spec:
             ARTIFACT_URI="s3://{{inputs.parameters.s3-artifact-bucket}}/{{inputs.parameters.workflow-name}}/data/raw/Base.csv"
             echo "Uploading to $ARTIFACT_URI"
             aws s3 cp "$DST_PATH" "$ARTIFACT_URI"
-            
-            echo "✓ Artifact uploaded successfully"
 
+            echo "Artifact uploaded successfully"
