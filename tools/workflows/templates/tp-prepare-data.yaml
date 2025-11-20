@@ -8,6 +8,8 @@ spec:
     - name: prepare-data
       inputs:
         parameters:
+          - name: s3-artifact-bucket
+          - name: workflow-name
           - name: s3-bucket
             value: "mlsecops-production-data"
           - name: s3-prefix
@@ -21,17 +23,21 @@ spec:
           - |
             set -euo pipefail
             echo "Preparing workspace..."
-            mkdir -p /workspace/data/raw
+            mkdir -p /tmp/workspace/data/raw
 
             SRC_URI="s3://{{inputs.parameters.s3-bucket}}/{{inputs.parameters.s3-prefix}}/{{inputs.parameters.s3-object}}"
-            DST_PATH="/workspace/data/raw/Base.csv"
+            DST_PATH="/tmp/workspace/data/raw/Base.csv"
 
             echo "Copying $SRC_URI -> $DST_PATH"
             aws s3 cp "$SRC_URI" "$DST_PATH"
 
             echo "Data prepared."
-            ls -lh /workspace/data /workspace/data/raw || true
+            ls -lh /tmp/workspace/data/raw
 
-      volumeMounts:
-        - name: workspace
-          mountPath: /workspace
+            # Upload to workflow artifact bucket
+            ARTIFACT_URI="s3://{{inputs.parameters.s3-artifact-bucket}}/{{inputs.parameters.workflow-name}}/data/raw/Base.csv"
+            echo "Uploading to $ARTIFACT_URI"
+            aws s3 cp "$DST_PATH" "$ARTIFACT_URI"
+            
+            echo "✓ Artifact uploaded successfully"
+

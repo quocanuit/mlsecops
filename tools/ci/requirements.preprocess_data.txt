@@ -2,3 +2,4 @@ pandas
 numpy
 scikit-learn
 imbalanced-learn
+boto3

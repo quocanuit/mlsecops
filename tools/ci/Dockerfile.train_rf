@@ -6,11 +6,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-COPY src/requirements.train.txt .
+COPY tools/ci/requirements.train.txt .
 
 RUN pip install --no-cache-dir -r requirements.train.txt
 
-COPY src/ ./src/
+COPY src/train_rf.py ./src/
+COPY src/utils/__init__.py ./src/utils/
+COPY src/utils/train_common.py ./src/utils/
+COPY src/utils/mlflow_common.py ./src/utils/
+COPY src/utils/workflows_artifacts_handler.py ./src/utils/
 
 ENV PYTHONPATH=/app/src
 

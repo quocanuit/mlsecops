@@ -18,16 +18,6 @@ spec:
       - name: AWS_EC2_METADATA_DISABLED
         value: "false"
 
-  volumeClaimTemplates:
-    - metadata:
-        name: workspace
-      spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: gp2
-        resources:
-          requests:
-            storage: 5Gi
-
   # Pipeline parameters
   arguments:
     parameters:
@@ -37,6 +27,8 @@ spec:
         value: "625715126488.dkr.ecr.us-east-1.amazonaws.com"
       - name: mlflow-tracking-uri
         value: "http://mlflow.mlflow.svc.cluster.local:5000"
+      - name: s3-artifact-bucket
+        value: "mlsecops-workflows-artifacts"
 
   templates:
     - name: main-pipeline
@@ -45,6 +37,12 @@ spec:
             templateRef:
               name: template-prepare-data
               template: prepare-data
+            arguments:
+              parameters:
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
 
         - - name: validate
             templateRef:
@@ -56,6 +54,10 @@ spec:
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
                   value: "validate_data-{{workflow.parameters.image-tag}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
 
         - - name: preprocess
             templateRef:
@@ -67,6 +69,10 @@ spec:
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
                   value: "preprocess_data-{{workflow.parameters.image-tag}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
 
         - - name: train-models
             template: train-parallel
@@ -91,6 +97,10 @@ spec:
                   value: "train_rf-{{workflow.parameters.image-tag}}"
                 - name: mlflow-tracking-uri
                   value: "{{workflow.parameters.mlflow-tracking-uri}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
           - name: train-xgboost
             templateRef:
               name: template-train-xgb
@@ -103,3 +113,7 @@ spec:
                   value: "train_xgb-{{workflow.parameters.image-tag}}"
                 - name: mlflow-tracking-uri
                   value: "{{workflow.parameters.mlflow-tracking-uri}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
