@@ -2,11 +2,13 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-COPY src/requirements.preprocess_data.txt .
+COPY tools/ci/requirements.preprocess_data.txt .
 
 RUN pip install --no-cache-dir -r requirements.preprocess_data.txt
 
-COPY src/ ./src/
+COPY src/preprocess_data.py ./src/
+COPY src/utils/__init__.py ./src/utils/
+COPY src/utils/workflows_artifacts_handler.py ./src/utils/
 
 ENV PYTHONPATH=/app/src
 

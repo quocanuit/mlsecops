@@ -12,19 +12,42 @@ spec:
           - name: image-tag
           - name: mlflow-tracking-uri
             value: ""
+          - name: s3-artifact-bucket
+          - name: workflow-name
       container:
         image: "{{inputs.parameters.ecr-registry}}/registry:{{inputs.parameters.image-tag}}"
         command: [sh, -c]
         args:
           - |
             set -e
+
+            # Download preprocessed data from S3
+            echo "Downloading preprocessed data from S3..."
+            python /app/src/utils/workflows_artifacts_handler.py \
+              --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
+              --workflow-name "{{inputs.parameters.workflow-name}}" \
+              download-dir \
+              --s3-prefix "artifacts/preprocessed" \
+              --local-dir "/workspace/artifacts/preprocessed" \
+              --pattern "*.csv"
+
+            echo "Running XGBoost training..."
             cd /workspace
             python /app/src/train_xgb.py
-            echo "XGBoost training complete!"
+
+            echo "Training complete! Uploading models..."
             ls -lh artifacts/models/
-        volumeMounts:
-          - name: workspace
-            mountPath: /workspace
+
+            # Upload models to S3
+            python /app/src/utils/workflows_artifacts_handler.py \
+              --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
+              --workflow-name "{{inputs.parameters.workflow-name}}" \
+              upload-dir \
+              --local-dir "/workspace/artifacts/models" \
+              --s3-prefix "artifacts/models" \
+              --pattern "*xgb*"
+
+            echo "XGBoost model uploaded to S3"
         env:
           - name: PYTHONUNBUFFERED
             value: "1"
@@ -32,6 +55,8 @@ spec:
             value: "{{inputs.parameters.mlflow-tracking-uri}}"
           - name: ARTIFACTS_DIR
             value: "/workspace/artifacts"
+          - name: PREPROCESSED_DIR
+            value: "/workspace/artifacts/preprocessed"
         resources:
           requests:
             memory: "512Mi"

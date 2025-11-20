@@ -10,19 +10,52 @@ spec:
         parameters:
           - name: ecr-registry
           - name: image-tag
+          - name: s3-artifact-bucket
+          - name: workflow-name
       container:
         image: "{{inputs.parameters.ecr-registry}}/registry:{{inputs.parameters.image-tag}}"
         command: [sh, -c]
         args:
           - |
             set -e
+
+            # Download raw data from S3
+            echo "Downloading raw data from S3..."
+            python /app/src/utils/workflows_artifacts_handler.py \
+              --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
+              --workflow-name "{{inputs.parameters.workflow-name}}" \
+              download-file \
+              --s3-key "data/raw/Base.csv" \
+              --local-path "/workspace/data/raw/Base.csv"
+
+            echo "Running validation..."
             cd /workspace
             python /app/src/validate_data.py
-            echo "Validation complete!"
-            ls -lh artifacts/
-        volumeMounts:
-          - name: workspace
-            mountPath: /workspace
+
+            echo "Validation complete! Uploading artifacts..."
+            ls -lh artifacts/validated/
+
+            # Upload validated data to S3
+            python /app/src/utils/workflows_artifacts_handler.py \
+              --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
+              --workflow-name "{{inputs.parameters.workflow-name}}" \
+              upload-dir \
+              --local-dir "/workspace/artifacts/validated" \
+              --s3-prefix "artifacts/validated" \
+              --pattern "*.csv"
+
+            echo "Validated data uploaded to S3"
         env:
           - name: PYTHONUNBUFFERED
             value: "1"
+          - name: ARTIFACTS_DIR
+            value: "/workspace/artifacts"
+          - name: DATA_DIR_RAW
+            value: "/workspace/data/raw"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
