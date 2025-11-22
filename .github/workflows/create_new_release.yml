@@ -24,7 +24,7 @@ jobs:
             mlflow_serving
           ]
     env:
-        VERSION_TAG: ${{ github.event.inputs.version_tag }}
+        VERSION_TAG: ${{ github.ref_name }}
         IMAGE_NAME: ${{ matrix.image_name }}
 
     steps:
@@ -32,7 +32,7 @@ jobs:
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       with:
         fetch-depth: 0
-        ref: ${{ github.event.inputs.branch }}
+        ref: ${{ github.ref }}
 
     - name: Process build information
       run: |
