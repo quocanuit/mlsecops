@@ -1,0 +1,49 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: mlsecops-model-deployment-
+  namespace: argo-workflows
+spec:
+  entrypoint: main-deployment
+  serviceAccountName: argo-workflow
+
+  podSpecPatch: |
+    containers:
+    - name: main
+      env:
+      - name: AWS_ROLE_ARN
+        value: ""
+      - name: AWS_WEB_IDENTITY_TOKEN_FILE
+        value: ""
+      - name: AWS_EC2_METADATA_DISABLED
+        value: "false"
+
+  arguments:
+    parameters:
+      - name: model-version
+        value: "1"
+        description: "Version of fraud-detection-model to deploy (e.g., '1', '2', 'Production')"
+      - name: image-tag
+        value: "v0.0.1"
+      - name: ecr-registry
+        value: "625715126488.dkr.ecr.us-east-1.amazonaws.com"
+      - name: mlflow-tracking-uri
+        value: "http://mlflow.mlflow.svc.cluster.local:5000"
+
+  templates:
+    - name: main-deployment
+      steps:
+        - - name: deploy-model
+            templateRef:
+              name: template-deploy-model
+              template: deploy-model
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "deploy_model-{{workflow.parameters.image-tag}}"
+                - name: model-version
+                  value: "{{workflow.parameters.model-version}}"
+                - name: mlflow-tracking-uri
+                  value: "{{workflow.parameters.mlflow-tracking-uri}}"

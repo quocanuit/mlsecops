@@ -20,7 +20,16 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        image_name: [validate_data, preprocess_data, train_rf, train_xgb]
+        image_name:
+          [
+            validate_data,
+            preprocess_data,
+            train_rf,
+            train_xgb,
+            compare_models,
+            deploy_model,
+            mlflow_serving
+          ]
     env:
         VERSION_TAG: ${{ github.event.inputs.version_tag }}
         IMAGE_NAME: ${{ matrix.image_name }}
@@ -60,7 +69,7 @@ jobs:
         echo "Image ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }} verified"
 
     - name: Run Trivy security scan
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
       with:
         image-ref: ${{ env.IMAGE_NAME }}:${{ env.VERSION_TAG }}
         format: 'table'

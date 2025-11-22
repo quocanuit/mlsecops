@@ -1,15 +1,16 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: template-compare-models
+  name: template-deploy-model
   namespace: argo-workflows
 spec:
   templates:
-    - name: compare-models
+    - name: deploy-model
       inputs:
         parameters:
           - name: ecr-registry
           - name: image-tag
+          - name: model-version
           - name: mlflow-tracking-uri
       container:
         image: "{{inputs.parameters.ecr-registry}}/registry:{{inputs.parameters.image-tag}}"
@@ -17,17 +18,22 @@ spec:
         args:
           - |
             set -e
-            echo "Starting model comparison..."
-            python /app/src/compare_models.py
+            python /app/src/deploy_model.py
         env:
           - name: PYTHONUNBUFFERED
             value: "1"
           - name: MLFLOW_TRACKING_URI
             value: "{{inputs.parameters.mlflow-tracking-uri}}"
+          - name: MODEL_NAME
+            value: "fraud-detection-model"
+          - name: MODEL_VERSION
+            value: "{{inputs.parameters.model-version}}"
+          - name: MANIFEST_PATH
+            value: "/app/k8s/model-serving.yaml"
         resources:
           requests:
             memory: "256Mi"
             cpu: "100m"
           limits:
             memory: "512Mi"
-            cpu: "200m"
+            cpu: "500m"

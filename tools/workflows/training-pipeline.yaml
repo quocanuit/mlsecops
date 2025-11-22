@@ -77,10 +77,18 @@ spec:
         - - name: train-models
             template: train-parallel
 
-        # - - name: compare-models
-        #     templateRef:
-        #       name: template-compare-models
-        #       template: compare-models
+        - - name: compare-models
+            templateRef:
+              name: template-compare-models
+              template: compare-models
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "compare_models-{{workflow.parameters.image-tag}}"
+                - name: mlflow-tracking-uri
+                  value: "{{workflow.parameters.mlflow-tracking-uri}}"
 
     - name: train-parallel
       parallelism: 2
