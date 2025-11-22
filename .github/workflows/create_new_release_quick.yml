@@ -20,7 +20,7 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        image_name: [validate_data, preprocess_data, train_rf, train_xgb]
+        image_name: [validate_data, preprocess_data, train_rf, train_xgb, compare_models]
     env:
         VERSION_TAG: ${{ github.event.inputs.version_tag }}
         IMAGE_NAME: ${{ matrix.image_name }}
