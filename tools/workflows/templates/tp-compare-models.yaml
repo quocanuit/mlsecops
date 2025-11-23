@@ -12,7 +12,7 @@ spec:
           - name: image-tag
           - name: mlflow-tracking-uri
       container:
-        image: "{{inputs.parameters.ecr-registry}}/registry:{{inputs.parameters.image-tag}}"
+        image: "{{inputs.parameters.ecr-registry}}:{{inputs.parameters.image-tag}}"
         command: [sh, -c]
         args:
           - |

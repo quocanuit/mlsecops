@@ -24,7 +24,7 @@ spec:
       - name: image-tag
         value: "v0.0.1"
       - name: ecr-registry
-        value: "625715126488.dkr.ecr.us-east-1.amazonaws.com"
+        value: "625715126488.dkr.ecr.us-east-1.amazonaws.com/registry"
       - name: mlflow-tracking-uri
         value: "http://mlflow.mlflow.svc.cluster.local:5000"
       - name: s3-artifact-bucket
