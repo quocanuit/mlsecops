@@ -1,0 +1,11 @@
+trainingPipeline:
+  imageTag: v0.0.1
+  ecrRegistry: 625715126488.dkr.ecr.us-east-1.amazonaws.com
+  mlflowTrackingUrl: http://mlflow.mlflow.svc.cluster.local:5000
+  s3ArtifactBucket: mlsecops-workflows-artifacts
+
+servingDeployment:
+  imageTag: v0.0.1
+  ecrRegistry: 625715126488.dkr.ecr.us-east-1.amazonaws.com
+  mlflowTrackingUrl: http://mlflow.mlflow.svc.cluster.local:5000
+  modelVersion: 1

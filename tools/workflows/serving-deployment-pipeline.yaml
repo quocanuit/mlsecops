@@ -23,9 +23,6 @@ spec:
       - name: model-version
         value: "1"
         description: "Version of fraud-detection-model to deploy (e.g., '1', '2', 'Production')"
-      - name: container-image
-        value: "625715126488.dkr.ecr.us-east-1.amazonaws.com/registry:mlflow_serving-v0.0.2"
-        description: "Container image for the MLflow model serving deployment"
       - name: image-tag
         value: "v0.0.2"
       - name: ecr-registry
@@ -49,6 +46,6 @@ spec:
                 - name: model-version
                   value: "{{workflow.parameters.model-version}}"
                 - name: container-image
-                  value: "{{workflow.parameters.container-image}}"
+                  value: "{{workflow.parameters.ecr-registry}}/registry:mlflow_serving-{{workflow.parameters.image-tag}}"
                 - name: mlflow-tracking-uri
                   value: "{{workflow.parameters.mlflow-tracking-uri}}"
