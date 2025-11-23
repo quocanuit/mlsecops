@@ -20,6 +20,7 @@ spec:
     spec:
       containers:
       - name: mlflow-model-server
+        image: IMAGE_PLACEHOLDER
         command:
           - mlflow
           - models
