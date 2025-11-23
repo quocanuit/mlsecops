@@ -57,6 +57,11 @@ def deploy_to_k8s(model_version: str, manifest_path: str = "/app/k8s/model-servi
             "DEPLOYMENT_NAME_PLACEHOLDER",
             deployment_name
         )
+        container_image = os.getenv(
+            "CONTAINER_IMAGE",
+            "625715126488.dkr.ecr.us-east-1.amazonaws.com/registry:mlflow_serving-v0.0.1"
+        )
+        manifest_content = manifest_content.replace("IMAGE_PLACEHOLDER", container_image)
 
         # Write to temp file
         temp_manifest = "/tmp/model-serving-deploy.yaml"

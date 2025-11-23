@@ -11,6 +11,7 @@ spec:
           - name: ecr-registry
           - name: image-tag
           - name: model-version
+          - name: container-image
           - name: mlflow-tracking-uri
       container:
         image: "{{inputs.parameters.ecr-registry}}/registry:{{inputs.parameters.image-tag}}"
@@ -28,6 +29,8 @@ spec:
             value: "fraud-detection-model"
           - name: MODEL_VERSION
             value: "{{inputs.parameters.model-version}}"
+          - name: CONTAINER_IMAGE
+            value: "{{inputs.parameters.container-image}}"
           - name: MANIFEST_PATH
             value: "/app/k8s/model-serving.yaml"
         resources:
