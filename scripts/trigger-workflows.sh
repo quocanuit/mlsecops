@@ -33,7 +33,7 @@ fi
 case "$1" in
     --apply-templates)
         echo "Applying workflow templates..."
-        kubectl apply -f "$ROOT/tools/workflows/templates"
+        kubectl apply -f "$ROOT/tools/workflows/templates" --request-timeout=60s
         if [ $? -ne 0 ]; then
             echo "Failed to apply templates."
             return 1 2>/dev/null || exit 1
@@ -42,10 +42,26 @@ case "$1" in
         ;;
     --training-pipeline)
         echo "Submitting training pipeline..."
-        IMAGE_TAG=$(yq e '.trainingPipeline.imageTag' "$CONFIG_FILE")
-        ECR_REGISTRY=$(yq e '.trainingPipeline.ecrRegistry' "$CONFIG_FILE")
-        MLFLOW_TRACKING_URI=$(yq e '.trainingPipeline.mlflowTrackingUrl' "$CONFIG_FILE")
-        S3_ARTIFACT_BUCKET=$(yq e '.trainingPipeline.s3ArtifactBucket' "$CONFIG_FILE")
+        IMAGE_TAG=$(yq -r '.trainingPipeline.imageTag' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$IMAGE_TAG" ]; then
+            echo "Failed to read imageTag from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        ECR_REGISTRY=$(yq -r '.trainingPipeline.ecrRegistry' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$ECR_REGISTRY" ]; then
+            echo "Failed to read ecrRegistry from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        MLFLOW_TRACKING_URI=$(yq -r '.trainingPipeline.mlflowTrackingUrl' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$MLFLOW_TRACKING_URI" ]; then
+            echo "Failed to read mlflowTrackingUrl from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        S3_ARTIFACT_BUCKET=$(yq -r '.trainingPipeline.s3ArtifactBucket' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$S3_ARTIFACT_BUCKET" ]; then
+            echo "Failed to read s3ArtifactBucket from config."
+            return 1 2>/dev/null || exit 1
+        fi
 
         argo submit "$ROOT/tools/workflows/training-pipeline.yaml" \
             -n argo-workflows \
@@ -61,10 +77,26 @@ case "$1" in
         ;;
     --serving-deployment)
         echo "Submitting serving deployment..."
-        IMAGE_TAG=$(yq e '.servingDeployment.imageTag' "$CONFIG_FILE")
-        ECR_REGISTRY=$(yq e '.servingDeployment.ecrRegistry' "$CONFIG_FILE")
-        MLFLOW_TRACKING_URI=$(yq e '.servingDeployment.mlflowTrackingUrl' "$CONFIG_FILE")
-        MODEL_VERSION=$(yq e '.servingDeployment.modelVersion' "$CONFIG_FILE")
+        IMAGE_TAG=$(yq -r '.servingDeployment.imageTag' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$IMAGE_TAG" ]; then
+            echo "Failed to read imageTag from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        ECR_REGISTRY=$(yq -r '.servingDeployment.ecrRegistry' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$ECR_REGISTRY" ]; then
+            echo "Failed to read ecrRegistry from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        MLFLOW_TRACKING_URI=$(yq -r '.servingDeployment.mlflowTrackingUrl' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$MLFLOW_TRACKING_URI" ]; then
+            echo "Failed to read mlflowTrackingUrl from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        MODEL_VERSION=$(yq -r '.servingDeployment.modelVersion' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$MODEL_VERSION" ]; then
+            echo "Failed to read modelVersion from config."
+            return 1 2>/dev/null || exit 1
+        fi
 
         argo submit "$ROOT/tools/workflows/serving-deployment-pipeline.yaml" \
             -n argo-workflows \

@@ -3,13 +3,14 @@
 ## Setting up
 
 ```bash
-#### For Developer ###
-# 1. Set up your AWS credentials
+aws configure
 
-# 2. Install requirements
-pip install -r requirements.txt
+source scripts/setup.sh
 
-# 3. Enjoy coding in src/
+./scripts/trigger-workflows.sh --apply-templates
 
-# 4. Build Image on Action
+./scripts/trigger-workflows.sh --training-pipeline
+
+./scripts/trigger-workflows.sh --serving-deployment
+
 ```
