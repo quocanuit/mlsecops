@@ -15,7 +15,7 @@ spec:
           - name: s3-artifact-bucket
           - name: workflow-name
       container:
-        image: "{{inputs.parameters.ecr-registry}}/registry:{{inputs.parameters.image-tag}}"
+        image: "{{inputs.parameters.ecr-registry}}:{{inputs.parameters.image-tag}}"
         command: [sh, -c]
         args:
           - |

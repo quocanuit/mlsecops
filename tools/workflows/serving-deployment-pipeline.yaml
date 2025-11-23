@@ -26,7 +26,7 @@ spec:
       - name: image-tag
         value: "v0.0.2"
       - name: ecr-registry
-        value: "625715126488.dkr.ecr.us-east-1.amazonaws.com"
+        value: "625715126488.dkr.ecr.us-east-1.amazonaws.com/registry"
       - name: mlflow-tracking-uri
         value: "http://mlflow.mlflow.svc.cluster.local:5000"
 
@@ -46,6 +46,6 @@ spec:
                 - name: model-version
                   value: "{{workflow.parameters.model-version}}"
                 - name: container-image
-                  value: "{{workflow.parameters.ecr-registry}}/registry:mlflow_serving-{{workflow.parameters.image-tag}}"
+                  value: "{{workflow.parameters.ecr-registry}}:mlflow_serving-{{workflow.parameters.image-tag}}"
                 - name: mlflow-tracking-uri
                   value: "{{workflow.parameters.mlflow-tracking-uri}}"
