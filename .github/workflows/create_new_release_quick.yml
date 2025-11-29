@@ -28,7 +28,10 @@ jobs:
             train_xgb,
             compare_models,
             deploy_model,
-            mlflow_serving
+            mlflow_serving,
+            fetch_production_data,
+            retrain_rf,
+            retrain_xgb
           ]
     env:
         VERSION_TAG: ${{ github.event.inputs.version_tag }}

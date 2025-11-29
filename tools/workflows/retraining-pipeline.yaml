@@ -1,0 +1,144 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: mlsecops-retraining-pipeline-
+  namespace: argo-workflows
+spec:
+  entrypoint: main-retraining-pipeline
+  serviceAccountName: argo-workflow
+
+  podSpecPatch: |
+    containers:
+    - name: main
+      env:
+      - name: AWS_ROLE_ARN
+        value: ""
+      - name: AWS_WEB_IDENTITY_TOKEN_FILE
+        value: ""
+      - name: AWS_EC2_METADATA_DISABLED
+        value: "false"
+
+  # Pipeline parameters
+  arguments:
+    parameters:
+      - name: image-tag
+        value: "v0.0.1"
+      - name: ecr-registry
+        value: "625715126488.dkr.ecr.us-east-1.amazonaws.com/registry"
+      - name: mlflow-tracking-uri
+        value: "http://mlflow.mlflow.svc.cluster.local:5000"
+      - name: s3-artifact-bucket
+        value: "mlsecops-workflows-artifacts"
+      - name: dynamodb-table
+        value: "silver-table"
+      - name: s3-production-bucket
+        value: "mlsecops-production-data"
+
+  templates:
+    - name: main-retraining-pipeline
+      steps:
+        # Step 1: Fetch production data from DynamoDB
+        - - name: fetch-production-data
+            templateRef:
+              name: template-fetch-production-data
+              template: fetch-production-data
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "fetch_production_data-{{workflow.parameters.image-tag}}"
+                - name: dynamodb-table
+                  value: "{{workflow.parameters.dynamodb-table}}"
+                - name: s3-production-bucket
+                  value: "{{workflow.parameters.s3-production-bucket}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
+
+        # Step 2: Validate data
+        - - name: validate
+            templateRef:
+              name: template-validate-data
+              template: validate-data
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "validate_data-{{workflow.parameters.image-tag}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
+
+        # Step 3: Preprocess data
+        - - name: preprocess
+            templateRef:
+              name: template-preprocess-data
+              template: preprocess-data
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "preprocess_data-{{workflow.parameters.image-tag}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
+
+        # Step 4: Retrain models (parallel)
+        - - name: retrain-models
+            template: retrain-parallel
+
+        # Step 5: Compare models
+        - - name: compare-models
+            templateRef:
+              name: template-compare-models
+              template: compare-models
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "compare_models-{{workflow.parameters.image-tag}}"
+                - name: mlflow-tracking-uri
+                  value: "{{workflow.parameters.mlflow-tracking-uri}}"
+
+    - name: retrain-parallel
+      parallelism: 2
+      steps:
+        - - name: retrain-random-forest
+            templateRef:
+              name: template-retrain-rf
+              template: retrain-rf
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "retrain_rf-{{workflow.parameters.image-tag}}"
+                - name: mlflow-tracking-uri
+                  value: "{{workflow.parameters.mlflow-tracking-uri}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
+          - name: retrain-xgboost
+            templateRef:
+              name: template-retrain-xgb
+              template: retrain-xgb
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "retrain_xgb-{{workflow.parameters.image-tag}}"
+                - name: mlflow-tracking-uri
+                  value: "{{workflow.parameters.mlflow-tracking-uri}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
