@@ -55,6 +55,7 @@ jobs:
     - name: Copy CI tools to src directory
       run: |
         cp tools/ci/* src/
+        ls -la src
         mkdir -p models
 
     - name: Build Docker image
