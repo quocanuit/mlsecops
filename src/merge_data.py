@@ -118,13 +118,16 @@ def save_merged_data(df_merged):
     output_dir = RAW_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    # Remove data_source column before saving (only used for tracking/reporting)
+    df_final = df_merged.drop(columns=['data_source']) if 'data_source' in df_merged.columns else df_merged
+    
     output_path = output_dir / "Base.csv"
-    df_merged.to_csv(output_path, index=False)
+    df_final.to_csv(output_path, index=False)
     
     print(f"\n=== SAVING MERGED DATA ===")
     print(f"Output: {output_path}")
-    print(f"Shape: {df_merged.shape}")
-    print("Note: data_source column will be removed during validation")
+    print(f"Shape: {df_final.shape}")
+    print("Note: data_source column removed before saving")
     
     return output_path
 
