@@ -94,6 +94,34 @@ def save_to_local(df, local_path: str):
     print(f"Successfully saved to {local_path}")
 
 
+def download_old_data_from_s3(s3_bucket: str, s3_key: str, local_path: str):
+    """Download old training data from S3."""
+    print(f"\n=== DOWNLOADING OLD TRAINING DATA ===")
+    print(f"Source: s3://{s3_bucket}/{s3_key}")
+    print(f"Destination: {local_path}")
+    
+    try:
+        # Create directory if needed
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        
+        # Download from S3
+        s3_client = boto3.client('s3')
+        s3_client.download_file(s3_bucket, s3_key, local_path)
+        
+        # Verify downloaded file
+        df = pd.read_csv(local_path)
+        print(f"Old data downloaded successfully!")
+        print(f"  Records: {len(df)}")
+        print(f"  Features: {len(df.columns)}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"Warning: Could not download old data - {e}")
+        print("Continuing with only new production data...")
+        return False
+
+
 def main():
     """Main execution function."""
     print("=== FETCHING PRODUCTION DATA FROM DYNAMODB ===\n")
@@ -101,7 +129,12 @@ def main():
     # Configuration from environment variables
     table_name = os.getenv("DYNAMODB_TABLE", "silver-table")
     region = os.getenv("AWS_REGION", "us-east-1")
-    local_path = os.getenv("OUTPUT_PATH", "/workspace/data/raw/Base.csv")
+    new_data_path = os.getenv("OUTPUT_PATH", "/workspace/data/raw/Base_new.csv")
+    old_data_path = os.getenv("OLD_DATA_PATH", "/workspace/data/raw/Base_old.csv")
+    
+    # S3 location of old training data
+    old_data_s3_bucket = os.getenv("OLD_DATA_S3_BUCKET", "mlsecops-production-data")
+    old_data_s3_key = os.getenv("OLD_DATA_S3_KEY", "gold/sample/Base.csv")
     
     # Max items to fetch (for controlling data volume)
     max_items_str = os.getenv("MAX_ITEMS", "")
@@ -109,12 +142,14 @@ def main():
     
     print(f"Configuration:")
     print(f"  DynamoDB Table: {table_name}")
-    print(f"  Output Path: {local_path}")
+    print(f"  New Data Output: {new_data_path}")
+    print(f"  Old Data Output: {old_data_path}")
     print(f"  Max Items: {max_items if max_items else 'unlimited'}")
     print(f"  Region: {region}\n")
     
     try:
-        # Step 1: Fetch data from DynamoDB
+        # Step 1: Fetch new data from DynamoDB
+        print("=== FETCHING NEW PRODUCTION DATA ===")
         items = fetch_from_dynamodb(table_name, region, max_items)
         
         if not items:
@@ -122,16 +157,32 @@ def main():
             return 1
         
         # Step 2: Transform to DataFrame
-        df = transform_to_dataframe(items)
+        df_new = transform_to_dataframe(items)
         
-        # Step 3: Save to local file
-        save_to_local(df, local_path)
+        # Step 3: Save new data
+        save_to_local(df_new, new_data_path)
+        
+        # Step 4: Download old training data from S3
+        has_old_data = download_old_data_from_s3(
+            old_data_s3_bucket, 
+            old_data_s3_key, 
+            old_data_path
+        )
         
         # Print summary
         print("\n=== SUMMARY ===")
-        print(f"Records processed: {len(df)}")
-        print(f"Features: {len(df.columns)}")
-        print(f"Output location: {local_path}")
+        print(f"New production data:")
+        print(f"  Records: {len(df_new)}")
+        print(f"  Features: {len(df_new.columns)}")
+        print(f"  Location: {new_data_path}")
+        
+        if has_old_data:
+            df_old = pd.read_csv(old_data_path)
+            print(f"\nOld training data:")
+            print(f"  Records: {len(df_old)}")
+            print(f"  Features: {len(df_old.columns)}")
+            print(f"  Location: {old_data_path}")
+        
         print("\nData fetch completed successfully!")
         
         return 0

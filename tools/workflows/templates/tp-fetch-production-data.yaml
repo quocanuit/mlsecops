@@ -41,11 +41,12 @@ spec:
             python /app/src/utils/workflows_artifacts_handler.py \
               --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
               --workflow-name "{{inputs.parameters.workflow-name}}" \
-              upload-file \
-              --local-path "/workspace/data/raw/Base.csv" \
-              --s3-key "data/raw/Base.csv"
+              upload-dir \
+              --local-dir "/workspace/data/raw" \
+              --s3-prefix "data/raw" \
+              --pattern "*.csv"
 
-            echo "Production data ready for validation!"
+            echo "Production data ready for merge and validation!"
         env:
           - name: PYTHONUNBUFFERED
             value: "1"
@@ -54,7 +55,13 @@ spec:
           - name: AWS_REGION
             value: "us-east-1"
           - name: OUTPUT_PATH
-            value: "/workspace/data/raw/Base.csv"
+            value: "/workspace/data/raw/Base_new.csv"
+          - name: OLD_DATA_PATH
+            value: "/workspace/data/raw/Base_old.csv"
+          - name: OLD_DATA_S3_BUCKET
+            value: "{{inputs.parameters.s3-production-bucket}}"
+          - name: OLD_DATA_S3_KEY
+            value: "gold/sample/Base.csv"
           - name: MAX_ITEMS
             value: "{{inputs.parameters.max-items}}"
         resources:

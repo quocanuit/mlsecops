@@ -34,7 +34,9 @@ spec:
       - name: s3-production-bucket
         value: "mlsecops-production-data"
       - name: max-items
-        value: "100"  # Limit number of records to fetch (empty = unlimited)
+        value: "1000"  # Limit number of records to fetch (empty = unlimited)
+      - name: replay-ratio
+        value: "0.3"  # Replay 30% of old training data
 
   templates:
     - name: main-retraining-pipeline
@@ -61,33 +63,35 @@ spec:
                 - name: max-items
                   value: "{{workflow.parameters.max-items}}"
 
-        # Step 2: Validate data
-        - - name: validate
+        # Step 2: Merge new data with old data replay
+        - - name: merge-and-validate
             templateRef:
-              name: template-validate-data
-              template: validate-data
+              name: template-merge-and-validate-data
+              template: merge-and-validate-data
             arguments:
               parameters:
                 - name: ecr-registry
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
-                  value: "validate_data-{{workflow.parameters.image-tag}}"
+                  value: "merge_and_validate_data-{{workflow.parameters.image-tag}}"
                 - name: s3-artifact-bucket
                   value: "{{workflow.parameters.s3-artifact-bucket}}"
                 - name: workflow-name
                   value: "{{workflow.name}}"
+                - name: replay-ratio
+                  value: "{{workflow.parameters.replay-ratio}}"
 
-        # Step 3: Preprocess data
+        # Step 3: Preprocess production data (simplified for retraining)
         - - name: preprocess
             templateRef:
-              name: template-preprocess-data
-              template: preprocess-data
+              name: template-preprocess-production-data
+              template: preprocess-production-data
             arguments:
               parameters:
                 - name: ecr-registry
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
-                  value: "preprocess_data-{{workflow.parameters.image-tag}}"
+                  value: "preprocess_production_data-{{workflow.parameters.image-tag}}"
                 - name: s3-artifact-bucket
                   value: "{{workflow.parameters.s3-artifact-bucket}}"
                 - name: workflow-name
