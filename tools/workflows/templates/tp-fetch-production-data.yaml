@@ -23,6 +23,9 @@ spec:
           - |
             set -e
 
+            echo "Preparing workspace..."
+            mkdir -p /workspace/data/raw
+
             echo "Fetching production data from DynamoDB..."
             echo "Table: {{inputs.parameters.dynamodb-table}}"
             echo "Max items: {{inputs.parameters.max-items}}"

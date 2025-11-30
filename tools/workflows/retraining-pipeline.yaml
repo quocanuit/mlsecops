@@ -34,7 +34,7 @@ spec:
       - name: s3-production-bucket
         value: "mlsecops-production-data"
       - name: max-items
-        value: "10000"  # Limit number of records to fetch (empty = unlimited)
+        value: "100"  # Limit number of records to fetch (empty = unlimited)
 
   templates:
     - name: main-retraining-pipeline
