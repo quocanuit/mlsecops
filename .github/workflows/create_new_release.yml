@@ -7,21 +7,6 @@ on:
         description: 'Branch to release from'
         required: true
         default: 'master'
-      image_name:
-        description: 'Image to build'
-        required: true
-        type: choice
-        options:
-        - validate_data
-        - preprocess_data
-        - train_rf
-        - train_xgb
-        - compare_models
-        - deploy_model
-        - mlflow_serving
-        - fetch_production_data
-        - retrain_rf
-        - retrain_xgb
       version_tag:
         description: 'Version tag (e.g., v0.0.1)'
         required: true
@@ -33,16 +18,28 @@ jobs:
     permissions:
       contents: write
       id-token: write
+    strategy:
+      matrix:
+        image_name:
+          [
+            validate_data,
+            preprocess_data,
+            train_rf,
+            train_xgb,
+            compare_models,
+            deploy_model,
+            mlflow_serving
+          ]
     env:
-        VERSION_TAG: ${{ inputs.version_tag }}
-        IMAGE_NAME: ${{ inputs.image_name }}
+        VERSION_TAG: ${{ github.event.inputs.version_tag }}
+        IMAGE_NAME: ${{ matrix.image_name }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       with:
         fetch-depth: 0
-        ref: ${{ inputs.branch }}
+        ref: ${{ github.event.inputs.branch }}
 
     - name: Process build information
       run: |
