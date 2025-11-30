@@ -1,0 +1,65 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: template-merge-data
+  namespace: argo-workflows
+spec:
+  templates:
+    - name: merge-data
+      inputs:
+        parameters:
+          - name: ecr-registry
+          - name: image-tag
+          - name: s3-artifact-bucket
+          - name: workflow-name
+          - name: replay-ratio
+            value: "0.3"  # Default 30% replay
+      container:
+        image: "{{inputs.parameters.ecr-registry}}:{{inputs.parameters.image-tag}}"
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+
+            # Download raw data (both new and old) from S3
+            echo "Downloading raw data from S3..."
+            python /app/src/utils/workflows_artifacts_handler.py \
+              --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
+              --workflow-name "{{inputs.parameters.workflow-name}}" \
+              download-dir \
+              --s3-prefix "data/raw" \
+              --local-dir "/workspace/data/raw" \
+              --pattern "*.csv"
+
+            echo "Running merge..."
+            cd /workspace
+            python /app/src/merge_data.py
+
+            echo "Merge complete! Uploading artifacts..."
+            ls -lh /workspace/data/raw/
+
+            # Upload merged data to S3
+            python /app/src/utils/workflows_artifacts_handler.py \
+              --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
+              --workflow-name "{{inputs.parameters.workflow-name}}" \
+              upload-file \
+              --local-path "/workspace/data/raw/Base.csv" \
+              --s3-key "data/raw/Base.csv"
+
+            echo "Merged data uploaded to S3"
+        env:
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          - name: ARTIFACTS_DIR
+            value: "/workspace/artifacts"
+          - name: DATA_DIR_RAW
+            value: "/workspace/data/raw"
+          - name: REPLAY_RATIO
+            value: "{{inputs.parameters.replay-ratio}}"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"

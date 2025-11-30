@@ -1,0 +1,23 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY tools/ci/requirements.train.txt .
+
+RUN pip install --no-cache-dir -r requirements.train.txt boto3
+
+COPY src/fetch_prod_data.py ./src/
+COPY src/utils/__init__.py ./src/utils/
+COPY src/utils/workflows_artifacts_handler.py ./src/utils/
+
+ENV PYTHONPATH=/app/src
+
+ENV DYNAMODB_TABLE="silver-table"
+ENV AWS_REGION="us-east-1"
+ENV OUTPUT_PATH="/workspace/data/raw/Base_new.csv"
+
+CMD ["python", "src/fetch_prod_data.py"]

@@ -1,0 +1,65 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: template-fetch-prod-data
+  namespace: argo-workflows
+spec:
+  templates:
+    - name: fetch-prod-data
+      inputs:
+        parameters:
+          - name: ecr-registry
+          - name: image-tag
+          - name: dynamodb-table
+          - name: s3-artifact-bucket
+          - name: workflow-name
+          - name: max-items
+            value: ""
+      container:
+        image: "{{inputs.parameters.ecr-registry}}:{{inputs.parameters.image-tag}}"
+        command: [sh, -c]
+        args:
+          - |
+            set -e
+
+            echo "Preparing workspace..."
+            mkdir -p /workspace/data/raw
+
+            echo "Fetching production data from DynamoDB..."
+            echo "Table: {{inputs.parameters.dynamodb-table}}"
+            echo "Max items: {{inputs.parameters.max-items}}"
+            
+            cd /workspace
+            python /app/src/fetch_prod_data.py
+
+            echo "New data fetched successfully!"
+            ls -lh /workspace/data/raw/
+
+            # Upload to workflow artifact bucket
+            echo "Uploading to workflow artifacts..."
+            python /app/src/utils/workflows_artifacts_handler.py \
+              --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
+              --workflow-name "{{inputs.parameters.workflow-name}}" \
+              upload-file \
+              --local-path "/workspace/data/raw/Base_new.csv" \
+              --s3-key "data/raw/Base_new.csv"
+
+            echo "New production data ready!"
+        env:
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          - name: DYNAMODB_TABLE
+            value: "{{inputs.parameters.dynamodb-table}}"
+          - name: AWS_REGION
+            value: "us-east-1"
+          - name: OUTPUT_PATH
+            value: "/workspace/data/raw/Base_new.csv"
+          - name: MAX_ITEMS
+            value: "{{inputs.parameters.max-items}}"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "300m"
+          limits:
+            memory: "1Gi"
+            cpu: "800m"

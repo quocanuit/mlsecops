@@ -1,11 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: template-prepare-data
+  name: template-get-base-data
   namespace: argo-workflows
 spec:
   templates:
-    - name: prepare-data
+    - name: get-base-data
       inputs:
         parameters:
           - name: s3-artifact-bucket
@@ -22,7 +22,7 @@ spec:
         args:
           - |
             set -euo pipefail
-            echo "Preparing workspace..."
+            echo "Getting base training data from S3..."
             mkdir -p /tmp/workspace/data/raw
 
             SRC_URI="s3://{{inputs.parameters.s3-bucket}}/{{inputs.parameters.s3-prefix}}/{{inputs.parameters.s3-object}}"
@@ -31,7 +31,7 @@ spec:
             echo "Copying $SRC_URI -> $DST_PATH"
             aws s3 cp "$SRC_URI" "$DST_PATH"
 
-            echo "Data prepared."
+            echo "Base data downloaded."
             ls -lh /tmp/workspace/data/raw
 
             # Upload to workflow artifact bucket
@@ -39,4 +39,4 @@ spec:
             echo "Uploading to $ARTIFACT_URI"
             aws s3 cp "$DST_PATH" "$ARTIFACT_URI"
 
-            echo "Artifact uploaded successfully"
+            echo "Base data uploaded successfully"

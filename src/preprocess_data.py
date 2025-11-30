@@ -3,6 +3,7 @@ import json
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.utils import resample
+from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import SMOTE
 from pathlib import Path
 import sys
@@ -15,6 +16,9 @@ PREPROCESSED_DIR = Path(os.getenv("PREPROCESSED_DIR", str(ROOT / "artifacts" / "
 RANDOM_STATE_VALUE = 42
 TRAIN_WINDOW = 6
 TEST_WINDOW = 2
+
+# Split mode control via environment variable
+SPLIT_MODE = os.getenv("SPLIT_MODE", "time-based")  # Options: "time-based", "stratified"
 
 
 def preprocess_data():
@@ -47,26 +51,49 @@ def preprocess_data():
     )
 
     max_month = df_balanced['month'].max()
-    # Split data by month
-    train_start = max_month - (TRAIN_WINDOW + TEST_WINDOW) + 1
-    train_end = max_month - TEST_WINDOW
-    test_start = train_end + 1
-    test_end = max_month
 
-    train_data = df_balanced[df_balanced['month'].between(train_start, train_end)]
-    test_data = df_balanced[df_balanced['month'].between(test_start, test_end)]
+    # Split data based on SPLIT_MODE
+    if SPLIT_MODE == "stratified":
+        print(f"Using STRATIFIED split (80/20)")
 
-    train_data = train_data.drop(columns=['month'])
-    test_data = test_data.drop(columns=['month'])
+        # Drop month column for stratified split
+        df_split = df_balanced.drop(columns=['month'])
+        X = df_split.drop('fraud_bool', axis=1)
+        y = df_split['fraud_bool']
 
-    train_data.reset_index(drop=True, inplace=True)
-    test_data.reset_index(drop=True, inplace=True)
+        # Stratified split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=0.2,
+            stratify=y,
+            random_state=RANDOM_STATE_VALUE
+        )
 
-    # Separate features and target
-    X_train = train_data.drop('fraud_bool', axis=1)
-    y_train = train_data['fraud_bool']
-    X_test = test_data.drop('fraud_bool', axis=1)
-    y_test = test_data['fraud_bool']
+        train_start = train_end = test_start = test_end = None  # Not applicable for stratified split
+
+    else:  # Default: time-based
+        print(f"Using TIME-BASED split ({TRAIN_WINDOW} months train, {TEST_WINDOW} months test)")
+
+        # Split data by month
+        train_start = max_month - (TRAIN_WINDOW + TEST_WINDOW) + 1
+        train_end = max_month - TEST_WINDOW
+        test_start = train_end + 1
+        test_end = max_month
+
+        train_data = df_balanced[df_balanced['month'].between(train_start, train_end)]
+        test_data = df_balanced[df_balanced['month'].between(test_start, test_end)]
+
+        train_data = train_data.drop(columns=['month'])
+        test_data = test_data.drop(columns=['month'])
+
+        train_data.reset_index(drop=True, inplace=True)
+        test_data.reset_index(drop=True, inplace=True)
+
+        # Separate features and target
+        X_train = train_data.drop('fraud_bool', axis=1)
+        y_train = train_data['fraud_bool']
+        X_test = test_data.drop('fraud_bool', axis=1)
+        y_test = test_data['fraud_bool']
 
     # Transform features
     X_train_transformed = preprocessor.fit_transform(X_train)
@@ -111,10 +138,11 @@ def generate_report(
     report = {
         "configurations": {
             "random_state": RANDOM_STATE_VALUE,
-            "train_months": f"{train_start}-{train_end}",
-            "test_months": f"{test_start}-{test_end}",
-            "train_window_months": TRAIN_WINDOW,
-            "test_window_months": TEST_WINDOW,
+            "split_mode": SPLIT_MODE,
+            "train_months": f"{train_start}-{train_end}" if SPLIT_MODE == "time-based" else "N/A (stratified)",
+            "test_months": f"{test_start}-{test_end}" if SPLIT_MODE == "time-based" else "N/A (stratified)",
+            "train_window_months": TRAIN_WINDOW if SPLIT_MODE == "time-based" else "N/A",
+            "test_window_months": TEST_WINDOW if SPLIT_MODE == "time-based" else "N/A",
             "balance_method": "downsampling",
             "oversampling_method": "SMOTE",
             "scaler": "StandardScaler",

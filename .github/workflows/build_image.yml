@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       image_name:
-        description: 'Image to build: validate_data||preprocess_data||train_rf||train_xgb'
+        description: 'Image to build'
         required: true
-        type: string
+        type: choice
+        options:
+        - validate_data
+        - preprocess_data
+        - train_rf
+        - train_xgb
       data_version:
         description: 'Git commit hash of .dvc data version'
         required: true

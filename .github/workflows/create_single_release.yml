@@ -19,7 +19,8 @@ on:
         - compare_models
         - deploy_model
         - mlflow_serving
-        - fetch_production_data
+        - fetch_prod_data
+        - merge_data
         - retrain_rf
         - retrain_xgb
       version_tag:
@@ -55,6 +56,7 @@ jobs:
     - name: Copy CI tools to src directory
       run: |
         cp tools/ci/* src/
+        ls -la src
         mkdir -p models
 
     - name: Build Docker image
