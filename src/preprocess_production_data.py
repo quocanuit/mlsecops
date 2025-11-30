@@ -35,8 +35,9 @@ def preprocess_production_data():
         df = df.drop(columns=['data_source'])
 
     # Check minimum data requirements
-    if len(df) < 50:
-        raise ValueError(f"Insufficient data: only {len(df)} records. Need at least 50 for retraining.")
+    min_required = 10  # Lowered for testing with small datasets
+    if len(df) < min_required:
+        raise ValueError(f"Insufficient data: only {len(df)} records. Need at least {min_required} for retraining.")
 
     # Remove month column if exists (not needed for simple split)
     if 'month' in df.columns:

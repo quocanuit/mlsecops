@@ -106,6 +106,16 @@ def download_old_data_from_s3(s3_bucket: str, s3_key: str, local_path: str):
         
         # Download from S3
         s3_client = boto3.client('s3')
+        
+        # Check if file exists first
+        try:
+            s3_client.head_object(Bucket=s3_bucket, Key=s3_key)
+            print(f"Found old data file in S3")
+        except Exception as e:
+            print(f"Old data file not found in S3: {e}")
+            print(f"Continuing without old data...")
+            return False
+        
         s3_client.download_file(s3_bucket, s3_key, local_path)
         
         # Verify downloaded file
@@ -117,7 +127,9 @@ def download_old_data_from_s3(s3_bucket: str, s3_key: str, local_path: str):
         return True
         
     except Exception as e:
-        print(f"Warning: Could not download old data - {e}")
+        print(f"Error downloading old data: {e}")
+        import traceback
+        traceback.print_exc()
         print("Continuing with only new production data...")
         return False
 
