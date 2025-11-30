@@ -1,21 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: template-fetch-production-data
+  name: template-fetch-prod-data
   namespace: argo-workflows
 spec:
   templates:
-    - name: fetch-production-data
+    - name: fetch-prod-data
       inputs:
         parameters:
           - name: ecr-registry
           - name: image-tag
           - name: dynamodb-table
-          - name: s3-production-bucket
           - name: s3-artifact-bucket
           - name: workflow-name
           - name: max-items
-            value: ""  # Optional: limit number of records to fetch
+            value: ""
       container:
         image: "{{inputs.parameters.ecr-registry}}:{{inputs.parameters.image-tag}}"
         command: [sh, -c]
@@ -31,22 +30,21 @@ spec:
             echo "Max items: {{inputs.parameters.max-items}}"
             
             cd /workspace
-            python /app/src/fetch_production_data.py
+            python /app/src/fetch_prod_data.py
 
-            echo "Data fetched successfully!"
+            echo "New data fetched successfully!"
             ls -lh /workspace/data/raw/
 
-            # Upload to workflow artifact bucket using workflows_artifacts_handler
+            # Upload to workflow artifact bucket
             echo "Uploading to workflow artifacts..."
             python /app/src/utils/workflows_artifacts_handler.py \
               --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
               --workflow-name "{{inputs.parameters.workflow-name}}" \
-              upload-dir \
-              --local-dir "/workspace/data/raw" \
-              --s3-prefix "data/raw" \
-              --pattern "*.csv"
+              upload-file \
+              --local-path "/workspace/data/raw/Base_new.csv" \
+              --s3-key "data/raw/Base_new.csv"
 
-            echo "Production data ready for merge and validation!"
+            echo "New production data ready!"
         env:
           - name: PYTHONUNBUFFERED
             value: "1"
@@ -56,12 +54,6 @@ spec:
             value: "us-east-1"
           - name: OUTPUT_PATH
             value: "/workspace/data/raw/Base_new.csv"
-          - name: OLD_DATA_PATH
-            value: "/workspace/data/raw/Base_old.csv"
-          - name: OLD_DATA_S3_BUCKET
-            value: "{{inputs.parameters.s3-production-bucket}}"
-          - name: OLD_DATA_S3_KEY
-            value: "gold/sample/Base.csv"
           - name: MAX_ITEMS
             value: "{{inputs.parameters.max-items}}"
         resources:

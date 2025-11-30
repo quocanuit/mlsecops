@@ -1,11 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: template-merge-and-validate-data
+  name: template-merge-data
   namespace: argo-workflows
 spec:
   templates:
-    - name: merge-and-validate-data
+    - name: merge-data
       inputs:
         parameters:
           - name: ecr-registry
@@ -31,23 +31,22 @@ spec:
               --local-dir "/workspace/data/raw" \
               --pattern "*.csv"
 
-            echo "Running merge and validation..."
+            echo "Running merge..."
             cd /workspace
-            python /app/src/merge_and_validate_data.py
+            python /app/src/merge_data.py
 
-            echo "Merge and validation complete! Uploading artifacts..."
-            ls -lh artifacts/validated/
+            echo "Merge complete! Uploading artifacts..."
+            ls -lh /workspace/data/raw/
 
-            # Upload validated data to S3
+            # Upload merged data to S3
             python /app/src/utils/workflows_artifacts_handler.py \
               --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
               --workflow-name "{{inputs.parameters.workflow-name}}" \
-              upload-dir \
-              --local-dir "/workspace/artifacts/validated" \
-              --s3-prefix "artifacts/validated" \
-              --pattern "*.csv"
+              upload-file \
+              --local-path "/workspace/data/raw/Base.csv" \
+              --s3-key "data/raw/Base.csv"
 
-            echo "Merged and validated data uploaded to S3"
+            echo "Merged data uploaded to S3"
         env:
           - name: PYTHONUNBUFFERED
             value: "1"

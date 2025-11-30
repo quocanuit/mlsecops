@@ -19,9 +19,8 @@ on:
         - compare_models
         - deploy_model
         - mlflow_serving
-        - fetch_production_data
-        - merge_and_validate_data
-        - preprocess_production_data
+        - fetch_prod_data
+        - merge_data
         - retrain_rf
         - retrain_xgb
       version_tag:

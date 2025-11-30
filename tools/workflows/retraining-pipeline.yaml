@@ -41,39 +41,21 @@ spec:
   templates:
     - name: main-retraining-pipeline
       steps:
-        # Step 1: Fetch production data from DynamoDB
-        - - name: fetch-production-data
-            templateRef:
-              name: template-fetch-production-data
-              template: fetch-production-data
-            arguments:
-              parameters:
-                - name: ecr-registry
-                  value: "{{workflow.parameters.ecr-registry}}"
-                - name: image-tag
-                  value: "fetch_production_data-{{workflow.parameters.image-tag}}"
-                - name: dynamodb-table
-                  value: "{{workflow.parameters.dynamodb-table}}"
-                - name: s3-production-bucket
-                  value: "{{workflow.parameters.s3-production-bucket}}"
-                - name: s3-artifact-bucket
-                  value: "{{workflow.parameters.s3-artifact-bucket}}"
-                - name: workflow-name
-                  value: "{{workflow.name}}"
-                - name: max-items
-                  value: "{{workflow.parameters.max-items}}"
+        # Step 1: Prepare data (parallel)
+        - - name: prepare-data
+            template: prepare-data-parallel
 
         # Step 2: Merge new data with old data replay
-        - - name: merge-and-validate
+        - - name: merge-data
             templateRef:
-              name: template-merge-and-validate-data
-              template: merge-and-validate-data
+              name: template-merge-data
+              template: merge-data
             arguments:
               parameters:
                 - name: ecr-registry
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
-                  value: "merge_and_validate_data-{{workflow.parameters.image-tag}}"
+                  value: "merge_data-{{workflow.parameters.image-tag}}"
                 - name: s3-artifact-bucket
                   value: "{{workflow.parameters.s3-artifact-bucket}}"
                 - name: workflow-name
@@ -81,27 +63,43 @@ spec:
                 - name: replay-ratio
                   value: "{{workflow.parameters.replay-ratio}}"
 
-        # Step 3: Preprocess production data (simplified for retraining)
-        - - name: preprocess
+        # Step 3: Validate data
+        - - name: validate-data
             templateRef:
-              name: template-preprocess-production-data
-              template: preprocess-production-data
+              name: template-validate-data
+              template: validate-data
             arguments:
               parameters:
                 - name: ecr-registry
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
-                  value: "preprocess_production_data-{{workflow.parameters.image-tag}}"
+                  value: "validate_data-{{workflow.parameters.image-tag}}"
                 - name: s3-artifact-bucket
                   value: "{{workflow.parameters.s3-artifact-bucket}}"
                 - name: workflow-name
                   value: "{{workflow.name}}"
 
-        # Step 4: Retrain models (parallel)
+        # Step 4: Preprocess data
+        - - name: preprocess-data
+            templateRef:
+              name: template-preprocess-prod-data
+              template: preprocess-prod-data
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "preprocess_data-{{workflow.parameters.image-tag}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
+
+        # Step 5: Retrain models (parallel)
         - - name: retrain-models
             template: retrain-parallel
 
-        # Step 5: Compare models
+        # Step 6: Compare models
         - - name: compare-models
             templateRef:
               name: template-compare-models
@@ -114,6 +112,40 @@ spec:
                   value: "compare_models-{{workflow.parameters.image-tag}}"
                 - name: mlflow-tracking-uri
                   value: "{{workflow.parameters.mlflow-tracking-uri}}"
+
+    - name: prepare-data-parallel
+      parallelism: 2
+      steps:
+        - - name: fetch-prod-data
+            templateRef:
+              name: template-fetch-prod-data
+              template: fetch-prod-data
+            arguments:
+              parameters:
+                - name: ecr-registry
+                  value: "{{workflow.parameters.ecr-registry}}"
+                - name: image-tag
+                  value: "fetch_prod_data-{{workflow.parameters.image-tag}}"
+                - name: dynamodb-table
+                  value: "{{workflow.parameters.dynamodb-table}}"
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
+                - name: max-items
+                  value: "{{workflow.parameters.max-items}}"
+          - name: get-base-data
+            templateRef:
+              name: template-get-base-data
+              template: get-base-data
+            arguments:
+              parameters:
+                - name: s3-artifact-bucket
+                  value: "{{workflow.parameters.s3-artifact-bucket}}"
+                - name: workflow-name
+                  value: "{{workflow.name}}"
+                - name: s3-bucket
+                  value: "{{workflow.parameters.s3-production-bucket}}"
 
     - name: retrain-parallel
       parallelism: 2

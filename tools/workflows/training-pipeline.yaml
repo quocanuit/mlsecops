@@ -33,10 +33,10 @@ spec:
   templates:
     - name: main-pipeline
       steps:
-        - - name: prepare-data
+        - - name: get-base-data
             templateRef:
-              name: template-prepare-data
-              template: prepare-data
+              name: template-get-base-data
+              template: get-base-data
             arguments:
               parameters:
                 - name: s3-artifact-bucket

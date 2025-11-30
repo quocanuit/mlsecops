@@ -1,11 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: template-preprocess-production-data
+  name: template-preprocess-prod-data
   namespace: argo-workflows
 spec:
   templates:
-    - name: preprocess-production-data
+    - name: preprocess-prod-data
       inputs:
         parameters:
           - name: ecr-registry
@@ -25,13 +25,13 @@ spec:
               --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
               --workflow-name "{{inputs.parameters.workflow-name}}" \
               download-dir \
-              --s3-prefix "artifacts/validated" \
+              --s3-prefix "data/validated" \
               --local-dir "/workspace/data/validated" \
               --pattern "*.csv"
 
-            echo "Running production data preprocessing..."
+            echo "Running preprocessing with STRATIFIED split..."
             cd /workspace
-            python /app/src/preprocess_production_data.py
+            python /app/src/preprocess_data.py
 
             echo "Preprocessing complete! Uploading artifacts..."
             ls -lh artifacts/preprocessed/
@@ -55,6 +55,8 @@ spec:
             value: "/workspace/data/validated"
           - name: PREPROCESSED_DIR
             value: "/workspace/artifacts/preprocessed"
+          - name: SPLIT_MODE
+            value: "stratified"  # Use stratified split for retraining
         resources:
           requests:
             memory: "512Mi"
