@@ -14,6 +14,8 @@ spec:
           - name: s3-production-bucket
           - name: s3-artifact-bucket
           - name: workflow-name
+          - name: max-items
+            value: ""  # Optional: limit number of records to fetch
       container:
         image: "{{inputs.parameters.ecr-registry}}:{{inputs.parameters.image-tag}}"
         command: [sh, -c]
@@ -23,43 +25,22 @@ spec:
 
             echo "Fetching production data from DynamoDB..."
             echo "Table: {{inputs.parameters.dynamodb-table}}"
-            echo "Target: s3://{{inputs.parameters.s3-production-bucket}}/gold/"
+            echo "Max items: {{inputs.parameters.max-items}}"
             
             cd /workspace
             python /app/src/fetch_production_data.py
 
-            echo "Data fetched successfully! Uploading to artifacts bucket..."
-            
-            # Copy the latest data file from production bucket to artifacts bucket
-            # This makes it available for the next steps in the pipeline
-            aws s3 sync \
-              s3://{{inputs.parameters.s3-production-bucket}}/gold/ \
-              /workspace/artifacts/raw/ \
-              --exclude "*" \
-              --include "production_data_*.csv"
-            
-            # Get the latest file
-            LATEST_FILE=$(ls -t /workspace/artifacts/raw/production_data_*.csv | head -1)
-            
-            if [ -z "$LATEST_FILE" ]; then
-              echo "Error: No production data file found!"
-              exit 1
-            fi
-            
-            echo "Latest production data file: $LATEST_FILE"
-            
-            # Copy to standard location for validation step
-            cp "$LATEST_FILE" /workspace/artifacts/raw/Base.csv
-            
+            echo "Data fetched successfully!"
+            ls -lh /workspace/data/raw/
+
+            # Upload to workflow artifact bucket using workflows_artifacts_handler
             echo "Uploading to workflow artifacts..."
-            # Upload to S3 for next steps
             python /app/src/utils/workflows_artifacts_handler.py \
               --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
               --workflow-name "{{inputs.parameters.workflow-name}}" \
-              upload-dir \
-              --local-dir "/workspace/artifacts/raw" \
-              --s3-prefix "artifacts/raw" \
-              --pattern "*.csv"
+              upload-file \
+              --local-path "/workspace/data/raw/Base.csv" \
+              --s3-key "data/raw/Base.csv"
 
             echo "Production data ready for validation!"
         env:
@@ -67,12 +48,12 @@ spec:
             value: "1"
           - name: DYNAMODB_TABLE
             value: "{{inputs.parameters.dynamodb-table}}"
-          - name: S3_BUCKET
-            value: "{{inputs.parameters.s3-production-bucket}}"
           - name: AWS_REGION
             value: "us-east-1"
-          - name: ARTIFACTS_DIR
-            value: "/workspace/artifacts"
+          - name: OUTPUT_PATH
+            value: "/workspace/data/raw/Base.csv"
+          - name: MAX_ITEMS
+            value: "{{inputs.parameters.max-items}}"
         resources:
           requests:
             memory: "512Mi"

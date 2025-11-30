@@ -19,22 +19,37 @@ COLUMN_ORDER = [
 ]
 
 
-def fetch_from_dynamodb(table_name: str, region_name: str = "us-east-1"):
-    """Fetch all data from DynamoDB table."""
+def fetch_from_dynamodb(table_name: str, region_name: str = "us-east-1", max_items: int = None):
+    """Fetch data from DynamoDB table with optional limit."""
     print(f"Connecting to DynamoDB table: {table_name}")
     
     dynamodb = boto3.resource('dynamodb', region_name=region_name)
     table = dynamodb.Table(table_name)
     
-    print("Scanning table...")
-    response = table.scan()
+    print(f"Scanning table (max items: {max_items if max_items else 'unlimited'})...")
+    
+    scan_kwargs = {}
+    if max_items:
+        scan_kwargs['Limit'] = max_items
+    
+    response = table.scan(**scan_kwargs)
     items = response['Items']
     
-    # Handle pagination
-    while 'LastEvaluatedKey' in response:
+    # Handle pagination if no limit or need more items
+    while 'LastEvaluatedKey' in response and (not max_items or len(items) < max_items):
         print(f"Fetched {len(items)} items so far...")
-        response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+        
+        if max_items:
+            remaining = max_items - len(items)
+            scan_kwargs['Limit'] = min(remaining, 1000)  # DynamoDB max page size
+        
+        scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        response = table.scan(**scan_kwargs)
         items.extend(response['Items'])
+        
+        if max_items and len(items) >= max_items:
+            items = items[:max_items]
+            break
     
     print(f"Total items fetched: {len(items)}")
     return items
@@ -66,22 +81,17 @@ def transform_to_dataframe(items):
     return df
 
 
-def save_to_s3(df, s3_bucket: str, s3_key: str):
-    """Save DataFrame to S3 as CSV."""
-    print(f"Saving data to S3: s3://{s3_bucket}/{s3_key}")
+def save_to_local(df, local_path: str):
+    """Save DataFrame to local file as CSV."""
+    print(f"Saving data to: {local_path}")
     
-    # Create temporary file
-    temp_file = "/tmp/production_data.csv"
-    df.to_csv(temp_file, index=False)
+    # Create directory if needed
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
     
-    # Upload to S3
-    s3_client = boto3.client('s3')
-    s3_client.upload_file(temp_file, s3_bucket, s3_key)
+    # Save to CSV
+    df.to_csv(local_path, index=False)
     
-    print(f"Successfully uploaded to S3")
-    
-    # Clean up
-    os.remove(temp_file)
+    print(f"Successfully saved to {local_path}")
 
 
 def main():
@@ -90,22 +100,22 @@ def main():
     
     # Configuration from environment variables
     table_name = os.getenv("DYNAMODB_TABLE", "silver-table")
-    s3_bucket = os.getenv("S3_BUCKET", "mlsecops-production-data")
     region = os.getenv("AWS_REGION", "us-east-1")
+    local_path = os.getenv("OUTPUT_PATH", "/workspace/data/raw/Base.csv")
     
-    # Generate timestamped filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    s3_key = f"gold/production_data_{timestamp}.csv"
+    # Max items to fetch (for controlling data volume)
+    max_items_str = os.getenv("MAX_ITEMS", "")
+    max_items = int(max_items_str) if max_items_str else None
     
     print(f"Configuration:")
     print(f"  DynamoDB Table: {table_name}")
-    print(f"  S3 Bucket: {s3_bucket}")
-    print(f"  S3 Key: {s3_key}")
+    print(f"  Output Path: {local_path}")
+    print(f"  Max Items: {max_items if max_items else 'unlimited'}")
     print(f"  Region: {region}\n")
     
     try:
         # Step 1: Fetch data from DynamoDB
-        items = fetch_from_dynamodb(table_name, region)
+        items = fetch_from_dynamodb(table_name, region, max_items)
         
         if not items:
             print("Error: No data found in DynamoDB table")
@@ -114,14 +124,14 @@ def main():
         # Step 2: Transform to DataFrame
         df = transform_to_dataframe(items)
         
-        # Step 3: Save to S3
-        save_to_s3(df, s3_bucket, s3_key)
+        # Step 3: Save to local file
+        save_to_local(df, local_path)
         
         # Print summary
         print("\n=== SUMMARY ===")
         print(f"Records processed: {len(df)}")
         print(f"Features: {len(df.columns)}")
-        print(f"Output location: s3://{s3_bucket}/{s3_key}")
+        print(f"Output location: {local_path}")
         print("\nData fetch completed successfully!")
         
         return 0

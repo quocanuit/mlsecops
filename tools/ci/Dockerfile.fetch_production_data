@@ -11,11 +11,12 @@ COPY tools/ci/requirements.train.txt .
 RUN pip install --no-cache-dir -r requirements.train.txt boto3
 
 COPY src/fetch_production_data.py ./src/
+COPY src/utils/__init__.py ./src/utils/
+COPY src/utils/workflows_artifacts_handler.py ./src/utils/
 
 ENV PYTHONPATH=/app/src
 
 ENV DYNAMODB_TABLE="silver-table"
-ENV S3_BUCKET="mlsecops-production-data"
 ENV AWS_REGION="us-east-1"
 
 CMD ["python", "src/fetch_production_data.py"]

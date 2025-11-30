@@ -33,6 +33,8 @@ spec:
         value: "silver-table"
       - name: s3-production-bucket
         value: "mlsecops-production-data"
+      - name: max-items
+        value: "10000"  # Limit number of records to fetch (empty = unlimited)
 
   templates:
     - name: main-retraining-pipeline
@@ -56,6 +58,8 @@ spec:
                   value: "{{workflow.parameters.s3-artifact-bucket}}"
                 - name: workflow-name
                   value: "{{workflow.name}}"
+                - name: max-items
+                  value: "{{workflow.parameters.max-items}}"
 
         # Step 2: Validate data
         - - name: validate
