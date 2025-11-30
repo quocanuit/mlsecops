@@ -2,7 +2,6 @@ import sys
 import time
 from pathlib import Path
 import os
-import joblib
 
 import xgboost as xgb
 from mlflow.models import infer_signature
@@ -32,29 +31,27 @@ FIXED_FPR = 0.05
 
 
 def load_production_model(model_name: str = "xgboost_model", stage: str = "Production"):
-    """Load the current production model from MLflow."""
     print(f"Loading production model: {model_name} (stage: {stage})")
-    
+
     try:
-        # Get the model URI for the production stage
         model_uri = f"models:/{model_name}/{stage}"
-        
+
         # Load the xgboost model
         model = mlflow.xgboost.load_model(model_uri)
-        
+
         # Get model version info
         client = mlflow.tracking.MlflowClient()
         model_versions = client.get_latest_versions(model_name, stages=[stage])
-        
+
         if model_versions:
             version = model_versions[0].version
             run_id = model_versions[0].run_id
             print(f"Loaded model version: {version}, Run ID: {run_id}")
         else:
             print(f"Warning: Could not get model version info")
-        
+
         return model
-        
+
     except Exception as e:
         print(f"Error loading production model: {e}")
         print("Falling back to training from scratch...")
@@ -62,16 +59,14 @@ def load_production_model(model_name: str = "xgboost_model", stage: str = "Produ
 
 
 def retrain_model(base_model, X_train, y_train, X_test):
-    """Retrain model using incremental learning."""
-    
     if base_model is not None:
         print("Performing incremental learning on existing model...")
         # XGBoost supports incremental learning via xgb_model parameter
         model = xgb.XGBClassifier(
-            random_state=RANDOM_STATE_VALUE, 
+            random_state=RANDOM_STATE_VALUE,
             eval_metric='logloss'
         )
-        
+
         print("Training with incremental learning (continuing from base model)...")
         start_time = time.time()
         model.fit(X_train, y_train, xgb_model=base_model.get_booster())
@@ -79,7 +74,7 @@ def retrain_model(base_model, X_train, y_train, X_test):
     else:
         print("Training new XGBoost model from scratch...")
         model = xgb.XGBClassifier(random_state=RANDOM_STATE_VALUE, eval_metric='logloss')
-        
+
         start_time = time.time()
         model.fit(X_train, y_train)
         train_time = time.time() - start_time
@@ -113,7 +108,7 @@ def main():
 
         # Load production model
         production_model = load_production_model("xgboost_model", "Production")
-        
+
         # Load preprocessed data (from new production data)
         X_train_resampled, y_train_resampled, X_test_transformed, y_test = load_preprocessed_data()
 

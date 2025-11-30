@@ -2,7 +2,6 @@ import sys
 import time
 from pathlib import Path
 import os
-import joblib
 
 from sklearn.ensemble import RandomForestClassifier
 from mlflow.models import infer_signature
@@ -32,29 +31,27 @@ FIXED_FPR = 0.05
 
 
 def load_production_model(model_name: str = "random_forest_model", stage: str = "Production"):
-    """Load the current production model from MLflow."""
     print(f"Loading production model: {model_name} (stage: {stage})")
-    
+
     try:
-        # Get the model URI for the production stage
         model_uri = f"models:/{model_name}/{stage}"
-        
+
         # Load the sklearn model
         model = mlflow.sklearn.load_model(model_uri)
-        
+
         # Get model version info
         client = mlflow.tracking.MlflowClient()
         model_versions = client.get_latest_versions(model_name, stages=[stage])
-        
+
         if model_versions:
             version = model_versions[0].version
             run_id = model_versions[0].run_id
             print(f"Loaded model version: {version}, Run ID: {run_id}")
         else:
             print(f"Warning: Could not get model version info")
-        
+
         return model
-        
+
     except Exception as e:
         print(f"Error loading production model: {e}")
         print("Falling back to training from scratch...")
@@ -62,12 +59,10 @@ def load_production_model(model_name: str = "random_forest_model", stage: str = 
 
 
 def retrain_model(base_model, X_train, y_train, X_test):
-    """Retrain model using incremental learning."""
-    
     if base_model is not None:
         print("Performing incremental learning on existing model...")
         model = base_model
-        
+
         # Incremental learning with warm_start
         if hasattr(model, 'n_estimators'):
             # Store current number of estimators
@@ -101,7 +96,6 @@ def retrain_model(base_model, X_train, y_train, X_test):
 
 
 def main():
-    """Main execution function."""
     print("RANDOM FOREST MODEL RETRAINING")
 
     setup_mlflow()
@@ -114,7 +108,7 @@ def main():
 
         # Load production model
         production_model = load_production_model("random_forest_model", "Production")
-        
+
         # Load preprocessed data (from new production data)
         X_train_resampled, y_train_resampled, X_test_transformed, y_test = load_preprocessed_data()
 

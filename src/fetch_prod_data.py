@@ -19,121 +19,116 @@ COLUMN_ORDER = [
 
 
 def fetch_from_dynamodb(table_name: str, region_name: str = "us-east-1", max_items: int = None):
-    """Fetch data from DynamoDB table with optional limit."""
     print(f"Connecting to DynamoDB table: {table_name}")
-    
+
     dynamodb = boto3.resource('dynamodb', region_name=region_name)
     table = dynamodb.Table(table_name)
-    
+
     print(f"Scanning table (max items: {max_items if max_items else 'unlimited'})...")
-    
+
     scan_kwargs = {}
     if max_items:
         scan_kwargs['Limit'] = max_items
-    
+
     response = table.scan(**scan_kwargs)
     items = response['Items']
-    
+
     # Handle pagination if no limit or need more items
     while 'LastEvaluatedKey' in response and (not max_items or len(items) < max_items):
         print(f"Fetched {len(items)} items so far...")
-        
+
         if max_items:
             remaining = max_items - len(items)
             scan_kwargs['Limit'] = min(remaining, 1000)  # DynamoDB max page size
-        
+
         scan_kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
         response = table.scan(**scan_kwargs)
         items.extend(response['Items'])
-        
+
         if max_items and len(items) >= max_items:
             items = items[:max_items]
             break
-    
+
     print(f"Total items fetched: {len(items)}")
     return items
 
 
 def transform_to_dataframe(items):
-    """Transform DynamoDB items to pandas DataFrame with correct column order."""
     print("Transforming data to DataFrame...")
-    
+
     # Convert to DataFrame
     df = pd.DataFrame(items)
-    
+
     print(f"Original shape: {df.shape}")
     print(f"Original columns: {list(df.columns)}")
-    
+
     # Select and reorder columns
     available_columns = [col for col in COLUMN_ORDER if col in df.columns]
     missing_columns = [col for col in COLUMN_ORDER if col not in df.columns]
-    
+
     if missing_columns:
         print(f"Warning: Missing columns: {missing_columns}")
-    
+
     df = df[available_columns]
-    
+
     print(f"Final shape: {df.shape}")
     print(f"Final columns: {list(df.columns)}")
-    
+
     return df
 
 
 def save_to_local(df, local_path: str):
-    """Save DataFrame to local file as CSV."""
     print(f"Saving data to: {local_path}")
-    
-    # Create directory if needed
+
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
-    
+
     # Save to CSV
     df.to_csv(local_path, index=False)
-    
+
     print(f"Successfully saved to {local_path}")
 
 
 def main():
-    """Main execution function."""
     print("=== FETCHING NEW PRODUCTION DATA FROM DYNAMODB ===\n")
-    
+
     # Configuration from environment variables
     table_name = os.getenv("DYNAMODB_TABLE", "silver-table")
     region = os.getenv("AWS_REGION", "us-east-1")
     output_path = os.getenv("OUTPUT_PATH", "/workspace/data/raw/Base_new.csv")
-    
+
     # Max items to fetch (for controlling data volume)
     max_items_str = os.getenv("MAX_ITEMS", "")
     max_items = int(max_items_str) if max_items_str else None
-    
+
     print(f"Configuration:")
     print(f"  DynamoDB Table: {table_name}")
     print(f"  Output Path: {output_path}")
     print(f"  Max Items: {max_items if max_items else 'unlimited'}")
     print(f"  Region: {region}\n")
-    
+
     try:
         # Step 1: Fetch data from DynamoDB
         items = fetch_from_dynamodb(table_name, region, max_items)
-        
+
         if not items:
             print("Error: No data found in DynamoDB table")
             return 1
-        
+
         # Step 2: Transform to DataFrame
         df = transform_to_dataframe(items)
-        
+
         # Step 3: Save to local file
         save_to_local(df, output_path)
-        
+
         # Print summary
         print("\n=== SUMMARY ===")
         print(f"Records processed: {len(df)}")
         print(f"Features: {len(df.columns)}")
         print(f"Output location: {output_path}")
         print("\nNew data fetch completed successfully!")
-        
+
         return 0
-        
+
     except Exception as e:
         print(f"\nError during execution: {str(e)}")
         import traceback

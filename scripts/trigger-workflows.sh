@@ -75,6 +75,65 @@ case "$1" in
         fi
         echo "Training pipeline submitted successfully."
         ;;
+    --retraining-pipeline)
+        echo "Submitting retraining pipeline..."
+        IMAGE_TAG=$(yq -r '.retrainingPipeline.imageTag' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$IMAGE_TAG" ]; then
+            echo "Failed to read imageTag from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        ECR_REGISTRY=$(yq -r '.retrainingPipeline.ecrRegistry' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$ECR_REGISTRY" ]; then
+            echo "Failed to read ecrRegistry from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        MLFLOW_TRACKING_URI=$(yq -r '.retrainingPipeline.mlflowTrackingUrl' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$MLFLOW_TRACKING_URI" ]; then
+            echo "Failed to read mlflowTrackingUrl from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        S3_ARTIFACT_BUCKET=$(yq -r '.retrainingPipeline.s3ArtifactBucket' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$S3_ARTIFACT_BUCKET" ]; then
+            echo "Failed to read s3ArtifactBucket from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        DYNAMODB_TABLE=$(yq -r '.retrainingPipeline.dynamodbTable' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$DYNAMODB_TABLE" ]; then
+            echo "Failed to read dynamodbTable from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        S3_PRODUCTION_BUCKET=$(yq -r '.retrainingPipeline.s3ProductionBucket' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$S3_PRODUCTION_BUCKET" ]; then
+            echo "Failed to read s3ProductionBucket from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        MAX_ITEMS=$(yq -r '.retrainingPipeline.maxItems' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$MAX_ITEMS" ]; then
+            echo "Failed to read maxItems from config."
+            return 1 2>/dev/null || exit 1
+        fi
+        REPLAY_RATIO=$(yq -r '.retrainingPipeline.replayRatio' "$CONFIG_FILE")
+        if [ $? -ne 0 ] || [ -z "$REPLAY_RATIO" ]; then
+            echo "Failed to read replayRatio from config."
+            return 1 2>/dev/null || exit 1
+        fi
+
+        argo submit "$ROOT/tools/workflows/retraining-pipeline.yaml" \
+            -n argo-workflows \
+            -p image-tag="$IMAGE_TAG" \
+            -p ecr-registry="$ECR_REGISTRY" \
+            -p mlflow-tracking-uri="$MLFLOW_TRACKING_URI" \
+            -p s3-artifact-bucket="$S3_ARTIFACT_BUCKET" \
+            -p dynamodb-table="$DYNAMODB_TABLE" \
+            -p s3-production-bucket="$S3_PRODUCTION_BUCKET" \
+            -p max-items="$MAX_ITEMS" \
+            -p replay-ratio="$REPLAY_RATIO"
+        if [ $? -ne 0 ]; then
+            echo "Failed to submit retraining pipeline."
+            return 1 2>/dev/null || exit 1
+        fi
+        echo "Retraining pipeline submitted successfully."
+        ;;
     --serving-deployment)
         echo "Submitting serving deployment..."
         IMAGE_TAG=$(yq -r '.servingDeployment.imageTag' "$CONFIG_FILE")
@@ -111,7 +170,7 @@ case "$1" in
         echo "Serving deployment submitted successfully."
         ;;
     *)
-        echo "Usage: $0 {--apply-templates|--training-pipeline|--serving-deployment}"
+        echo "Usage: $0 {--apply-templates|--training-pipeline|--retraining-pipeline|--serving-deployment}"
         return 1 2>/dev/null || exit 1
         ;;
 esac
