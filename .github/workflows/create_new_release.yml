@@ -1,4 +1,4 @@
-name: Create Single Release
+name: Create New Release
 
 on:
   workflow_dispatch:
