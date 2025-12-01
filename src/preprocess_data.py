@@ -4,6 +4,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 from imblearn.under_sampling import NearMiss
 from pathlib import Path
+import numpy as np
 import sys
 import os
 
