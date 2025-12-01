@@ -45,65 +45,35 @@ def setup_mlflow(tracking_uri=None, experiment_name="mlsecops-fraud-detection"):
         return False
 
 
-def log_evaluation_metrics(
-    roc_auc, logloss, train_time, prediction_time, total_time,
-    accuracy_default, prec_default, rec_default, f1_default, fpr_default, tpr_default,
-    fixed_threshold, accuracy_fixed, prec_fixed, rec_fixed, f1_fixed, fpr_at, tpr_at
-):
+def log_evaluation_metrics(accuracy, precision, recall, f1, train_time, prediction_time):
+    """Log simple evaluation metrics to MLflow"""
     if not is_mlflow_enabled():
         return
 
     try:
-        # Log common metrics
-        mlflow.log_metric("roc_auc", roc_auc)
-        mlflow.log_metric("log_loss", logloss)
+        mlflow.log_metric("accuracy", accuracy)
+        mlflow.log_metric("precision", precision)
+        mlflow.log_metric("recall", recall)
+        mlflow.log_metric("f1_score", f1)
         mlflow.log_metric("train_time_seconds", train_time)
         mlflow.log_metric("prediction_time_seconds", prediction_time)
-        mlflow.log_metric("total_time_seconds", total_time)
-
-        # Log default threshold metrics
-        mlflow.log_metric("default_threshold", 0.5)
-        mlflow.log_metric("default_accuracy", accuracy_default)
-        mlflow.log_metric("default_precision", prec_default)
-        mlflow.log_metric("default_recall", rec_default)
-        mlflow.log_metric("default_f1", f1_default)
-        mlflow.log_metric("default_fpr", fpr_default)
-        mlflow.log_metric("default_tpr", tpr_default)
-
-        # Log fixed threshold metrics
-        mlflow.log_metric("fixed_threshold", fixed_threshold)
-        mlflow.log_metric("fixed_accuracy", accuracy_fixed)
-        mlflow.log_metric("fixed_precision", prec_fixed)
-        mlflow.log_metric("fixed_recall", rec_fixed)
-        mlflow.log_metric("fixed_f1", f1_fixed)
-        mlflow.log_metric("fixed_fpr", fpr_at)
-        mlflow.log_metric("fixed_tpr", tpr_at)
+        mlflow.log_metric("total_time_seconds", train_time + prediction_time)
 
         print("[MLflow] Logged evaluation metrics")
     except Exception as e:
         print(f"[MLflow] Warning: Could not log metrics - {e}")
 
 
-def log_model_and_params(model, model_name, metadata, model_path,
+def log_model_and_params(model, model_name, model_path,
                           mlflow_model_name: str = "model",
                           signature=None, input_example=None):
+    """Log model to MLflow"""
     if not is_mlflow_enabled():
         return
 
     try:
         # Log model parameters
-        mlflow.log_params(metadata["model_params"])
-
-        # Log dataset info
-        mlflow.log_param("n_train", metadata["n_train"])
-        mlflow.log_param("n_test", metadata["n_test"])
-        mlflow.log_param("n_features", metadata["n_features"])
-        mlflow.log_param("random_state", metadata["random_state"])
-        mlflow.log_param("target_fpr", metadata["fixed_fpr"])
-
-        # Log package versions
-        mlflow.log_param("sklearn_version", metadata["sklearn_version"])
-        mlflow.log_param("xgboost_version", metadata["xgboost_version"])
+        mlflow.log_params(model.get_params())
 
         # Log the models
         if "XGBoost" in model_name or "xgb" in str(type(model)).lower():
@@ -121,8 +91,8 @@ def log_model_and_params(model, model_name, metadata, model_path,
                 input_example=input_example
             )
 
-        # Log the complete bundle as artifact
-        mlflow.log_artifact(str(model_path), "model_bundle")
+        # Log the model file as artifact
+        mlflow.log_artifact(str(model_path), "model_artifacts")
 
         print(f"[MLflow] Logged model and parameters")
     except Exception as e:

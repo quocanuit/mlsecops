@@ -4,15 +4,12 @@ from pathlib import Path
 import os
 
 import xgboost as xgb
-from mlflow.models import infer_signature
 
 from utils.train_common import (
     load_preprocessed_data,
-    create_metadata,
     evaluate_model,
     save_model,
-    save_training_report,
-    ARTIFACTS_DIR
+    save_training_report
 )
 from utils.mlflow_common import (
     setup_mlflow,
@@ -27,28 +24,22 @@ from utils.mlflow_common import (
 
 ROOT = Path(os.getcwd())
 RANDOM_STATE_VALUE = 42
-FIXED_FPR = 0.05
 
 
 def train_model(X_train, y_train, X_test):
-    model = xgb.XGBClassifier(random_state=RANDOM_STATE_VALUE, eval_metric='logloss')
+    """Train XGBoost with simple config like just-like-this.py"""
+    model = xgb.XGBClassifier(random_state=RANDOM_STATE_VALUE, n_estimators=200)
 
     print("Training XGBoost model...")
     start_time = time.time()
     model.fit(X_train, y_train)
     train_time = time.time() - start_time
 
-    # Make predictions
     start_time = time.time()
     y_test_pred = model.predict(X_test)
     prediction_time = time.time() - start_time
 
-    y_test_prob = model.predict_proba(X_test)[:, 1]
-
-    # Collect metadata using common function
-    metadata = create_metadata(X_train, X_test, model, RANDOM_STATE_VALUE, FIXED_FPR)
-
-    return model, y_test_pred, y_test_prob, train_time, prediction_time, metadata
+    return model, y_test_pred, train_time, prediction_time
 
 
 def main():
@@ -57,7 +48,6 @@ def main():
 
     setup_mlflow()
 
-    # Start MLflow run (no-op if MLflow disabled)
     with start_run(run_name="xgboost_training"):
         set_tag("model_type", "XGBoost")
         set_tag("algorithm", "xgboost.XGBClassifier")
@@ -65,70 +55,44 @@ def main():
         # Load preprocessed data
         X_train_resampled, y_train_resampled, X_test_transformed, y_test = load_preprocessed_data()
 
-        # Log dataset information
-        # log_dataset(X_train_resampled, y_train_resampled, X_test_transformed, y_test, "fraud_detection")
-
         # Train the model
-        model, y_test_pred, y_test_prob, train_time, prediction_time, metadata = train_model(
+        model, y_test_pred, train_time, prediction_time = train_model(
             X_train_resampled, y_train_resampled, X_test_transformed
         )
 
         # Evaluate the model
-        results_default, results_fixed, fixed_threshold, report_default, report_fixed = evaluate_model(
-            "XGBoost", y_test, y_test_pred, y_test_prob, train_time, prediction_time, FIXED_FPR
+        accuracy, precision, recall, f1, report = evaluate_model(
+            "XGBoost", y_test, y_test_pred, train_time, prediction_time
+        )
+        
+        # Save training report
+        report_path = save_training_report(
+            "XGBoost", accuracy, precision, recall, f1, train_time, prediction_time, report
         )
 
-        # Extract metrics for MLflow logging
-        metrics_default = results_default.to_dict(orient='records')[0]
-        metrics_fixed = results_fixed.to_dict(orient='records')[0]
+        # Log metrics to MLflow
+        log_evaluation_metrics(accuracy, precision, recall, f1, train_time, prediction_time)
 
-        log_evaluation_metrics(
-            roc_auc=metrics_default["ROC-AUC Score"],
-            logloss=metrics_default["Log Loss"],
-            train_time=metrics_default["Training Time (s)"],
-            prediction_time=metrics_default["Prediction Time (s)"],
-            total_time=metrics_default["Total Time (s)"],
-            accuracy_default=metrics_default["Accuracy"],
-            prec_default=metrics_default["Precision"],
-            rec_default=metrics_default["Recall"],
-            f1_default=metrics_default["F1 Score"],
-            fpr_default=metrics_default["FPR@threshold"],
-            tpr_default=metrics_default["TPR@threshold"],
-            fixed_threshold=metrics_fixed["Decision Threshold"],
-            accuracy_fixed=metrics_fixed["Accuracy"],
-            prec_fixed=metrics_fixed["Precision@threshold"],
-            rec_fixed=metrics_fixed["Recall@threshold"],
-            f1_fixed=metrics_fixed["F1@threshold"],
-            fpr_at=metrics_fixed["FPR@threshold"],
-            tpr_at=metrics_fixed["TPR@threshold"]
-        )
-
-        # Save model bundle
-        model_path = save_model(model, "XGBoost Classifier", fixed_threshold, FIXED_FPR, metadata, "xgb_model_bundle.pkl")
-
-        try:
-            sig = infer_signature(
-                X_train_resampled[:100],
-                model.predict_proba(X_train_resampled[:100])[:, 1]
-            )
-        except Exception:
-            sig = None
-        input_example = X_train_resampled[:5]
+        # Save model
+        model_path = save_model(model, "XGBoost Classifier", "xgb_model.pkl")
 
         # Log model to MLflow
+        try:
+            from mlflow.models import infer_signature
+            sig = infer_signature(X_train_resampled[:100], model.predict(X_train_resampled[:100]))
+        except Exception:
+            sig = None
+        
         log_model_and_params(
-            model, "XGBoost Classifier", metadata, model_path,
+            model, "XGBoost Classifier", model_path,
             mlflow_model_name="xgboost_model",
-            signature=sig, input_example=input_example
+            signature=sig, input_example=X_train_resampled[:5]
         )
+        
+        # Log training report to MLflow
+        from utils.mlflow_common import log_training_report
+        log_training_report(report_path)
 
-        # Save training report
-        save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, "training_report_xgb.json")
-
-        # Log report to MLflow
-        log_training_report(ARTIFACTS_DIR / "training_report_xgb.json")
-
-        # Print run information
         print_run_info()
 
     print("\nTraining completed successfully!")
