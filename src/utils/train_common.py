@@ -7,46 +7,59 @@ import os
 from datetime import datetime
 import sklearn
 import xgboost
+import imblearn
 
 from sklearn.metrics import (
-    classification_report,
     accuracy_score,
     roc_auc_score,
-    roc_curve,
-    log_loss,
-    mean_squared_error,
-    precision_recall_fscore_support
+    log_loss
 )
 
 ROOT = Path(os.getcwd())
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
 
+
+def split_data(df_preprocessed):
+    from sklearn.model_selection import train_test_split
+    
+    X = df_preprocessed.drop('fraud_bool', axis=1)
+    y = df_preprocessed['fraud_bool']
+    
+    categorical_features = X.select_dtypes(include=['object', 'category']).columns
+    X[categorical_features] = X[categorical_features].astype('category')
+
+    # Train-Test Split
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y, shuffle=True)
+    
+    print(f"Train set: {X_train.shape[0]} samples")
+    print(f"Test set: {X_test.shape[0]} samples")
+    print(f"Train fraud rate: {y_train.mean():.4f}")
+    print(f"Test fraud rate: {y_test.mean():.4f}")
+    
+    return X_train, X_test, y_train, y_test
+
+
 def load_preprocessed_data():
-    legacy_dir = ROOT / "data" / "preprocessed"
     env_dir = os.getenv("PREPROCESSED_DIR", "").strip()
-    base_dir = Path(env_dir) if env_dir else legacy_dir
+    base_dir = Path(env_dir) if env_dir else ARTIFACTS_DIR / "preprocessed"
 
-    X_train_resampled = pd.read_csv(base_dir / "X_train_resampled.csv").values
-    y_train_resampled = pd.read_csv(base_dir / "y_train_resampled.csv").values.ravel()
-    X_test_transformed = pd.read_csv(base_dir / "X_test_transformed.csv").values
-    y_test = pd.read_csv(base_dir / "y_test.csv").values.ravel()
+    preprocessed_file = base_dir / "data_preprocessed.csv"
+    if not preprocessed_file.exists():
+        raise FileNotFoundError(f"Preprocessed data not found at: {preprocessed_file}")
 
-    print(f"[load_preprocessed_data] Using dir: {base_dir}")
-    print(f"  X_train_resampled: {X_train_resampled.shape}")
-    print(f"  y_train_resampled: {y_train_resampled.shape}")
-    print(f"  X_test_transformed: {X_test_transformed.shape}")
-    print(f"  y_test: {y_test.shape}")
+    print(f"[load_preprocessed_data] Loading from: {base_dir}")
+    df_preprocessed = pd.read_csv(preprocessed_file)
+    print(f"  data_preprocessed: {df_preprocessed.shape}")
 
-    return X_train_resampled, y_train_resampled, X_test_transformed, y_test
+    return df_preprocessed
 
 
-def create_metadata(X_train, X_test, model, random_state, fixed_fpr):
+def create_metadata(X_train, X_test, model):
     metadata = {
         "timestamp": datetime.now().isoformat(),
-        "random_state": random_state,
-        "fixed_fpr": fixed_fpr,
         "sklearn_version": sklearn.__version__,
         "xgboost_version": xgboost.__version__,
+        "imblearn_version": imblearn.__version__,
         "pandas_version": pd.__version__,
         "numpy_version": np.__version__,
         "n_train": int(X_train.shape[0]),
@@ -56,113 +69,53 @@ def create_metadata(X_train, X_test, model, random_state, fixed_fpr):
     }
     return metadata
 
+def print_metrics(y_test, y_pred, y_proba, train_time=None, prediction_time=None):
+    from sklearn.metrics import precision_score, recall_score, f1_score
+    
+    # Compute metrics
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    roc_auc = roc_auc_score(y_test, y_proba)
+    logloss = log_loss(y_test, y_proba)
 
-def evaluate_model(model_name, y_test, y_test_pred, y_test_prob, train_time, prediction_time, fixed_fpr):
-    # ROC curve
-    fpr, tpr, thresholds = roc_curve(y_test, y_test_prob)
-
-    # common metrics
-    roc_auc = roc_auc_score(y_test, y_test_prob)
-    logloss = log_loss(y_test, y_test_prob)
-    total_time = train_time + prediction_time
-
-    # 1. Default Threshold (0.5)
-    accuracy_default = accuracy_score(y_test, y_test_pred)
-    mse_default = mean_squared_error(y_test, y_test_pred)
-
-    # Compute precision, recall, F1 for default threshold
-    prec_default, rec_default, f1_default, _ = precision_recall_fscore_support(
-        y_test, y_test_pred, average="binary", zero_division=0
-    )
-
-    idx_default = np.argmin(np.abs(thresholds - 0.5))
-    fpr_default = float(fpr[idx_default])
-    tpr_default = float(tpr[idx_default])
-
-    results_default = {
-        "Model": model_name,
-        "Decision Threshold": 0.5,
-        "FPR@threshold": fpr_default,
-        "TPR@threshold": tpr_default,
-        "Accuracy": float(accuracy_default),
-        "Precision": float(prec_default),
-        "Recall": float(rec_default),
-        "F1 Score": float(f1_default),
-        "ROC-AUC Score": float(roc_auc),
-        "Log Loss": float(logloss),
-        "Mean Squared Error": float(mse_default),
-        "Training Time (s)": float(train_time),
-        "Prediction Time (s)": float(prediction_time),
-        "Total Time (s)": float(total_time)
+    # Print the results
+    print(f"Accuracy: {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
+    print(f"Recall: {recall:.4f}")
+    print(f"F1-Score: {f1:.4f}")
+    print(f"AUC-ROC: {roc_auc:.4f}")
+    print(f"Log Loss: {logloss:.4f}")
+    
+    # Build metrics dict
+    metrics = {
+        "accuracy": float(accuracy),
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1_score": float(f1),
+        "roc_auc": float(roc_auc),
+        "log_loss": float(logloss)
     }
-
-    results_df_default = pd.DataFrame([results_default])
-
-    # 2. Fixed Threshold at Fixed FPR
-    # Guard the fixed-FPR indexing
-    mask = fpr <= fixed_fpr
-    if not np.any(mask):
-        # Fallback to the lowest-FPR point
-        idx = 0
-        print(f"[WARNING] No threshold achieves FPR <= {fixed_fpr*100}%. Using lowest FPR available.")
-    else:
-        idx = np.nonzero(mask)[0][-1]
-
-    fixed_threshold = float(thresholds[idx])
-    fpr_at = float(fpr[idx])
-    tpr_at = float(tpr[idx])
-
-    print(f"[INFO] Fixed threshold selected: {fixed_threshold:.6f}")
-    print(f"       Achieved FPR: {fpr_at:.6f} (target: {fixed_fpr})")
-    print(f"       Achieved TPR: {tpr_at:.6f}")
-
-    # Predictions at fixed threshold
-    y_pred_fixed = (y_test_prob >= fixed_threshold).astype(int)
-
-    accuracy_fixed = accuracy_score(y_test, y_pred_fixed)
-    mse_fixed = mean_squared_error(y_test, y_pred_fixed)
-
-    # Compute precision, recall, F1 for fixed threshold
-    prec_fixed, rec_fixed, f1_fixed, _ = precision_recall_fscore_support(
-        y_test, y_pred_fixed, average="binary", zero_division=0
-    )
-
-    results_fixed = {
-        "Model": model_name,
-        "Decision Threshold": float(fixed_threshold),
-        "Target FPR": float(fixed_fpr),
-        "FPR@threshold": fpr_at,
-        "TPR@threshold": tpr_at,
-        "Accuracy": float(accuracy_fixed),
-        "Precision@threshold": float(prec_fixed),
-        "Recall@threshold": float(rec_fixed),
-        "F1@threshold": float(f1_fixed),
-        "ROC-AUC Score": float(roc_auc),
-        "Log Loss": float(logloss),
-        "Mean Squared Error": float(mse_fixed),
-        "Training Time (s)": float(train_time),
-        "Prediction Time (s)": float(prediction_time),
-        "Total Time (s)": float(total_time)
-    }
-
-    results_df_fixed = pd.DataFrame([results_fixed])
-
-    # Get classification reports
-    report_default = classification_report(y_test, y_test_pred, output_dict=True)
-    report_fixed = classification_report(y_test, y_pred_fixed, output_dict=True)
-
-    return results_df_default, results_df_fixed, fixed_threshold, report_default, report_fixed
+    
+    # Add timing metrics if provided
+    if train_time is not None:
+        metrics["train_time_seconds"] = float(train_time)
+    if prediction_time is not None:
+        metrics["prediction_time_seconds"] = float(prediction_time)
+    if train_time is not None and prediction_time is not None:
+        metrics["total_time_seconds"] = float(train_time + prediction_time)
+    
+    return metrics
 
 
-def save_model(model, model_name, fixed_threshold, fixed_fpr, metadata, bundle_filename):
+def save_model(model, model_name, metadata, bundle_filename):
     models_dir = ARTIFACTS_DIR / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
 
     # Create model bundle with metadata
     model_bundle = {
         "model": model,
-        "fixed_threshold": fixed_threshold,
-        "fixed_fpr": fixed_fpr,
         "metadata": metadata
     }
 
@@ -171,32 +124,25 @@ def save_model(model, model_name, fixed_threshold, fixed_fpr, metadata, bundle_f
 
     print(f"\n[INFO] Model bundle saved to: {model_path}")
     print(f"  - Model: {model_name}")
-    print(f"  - Fixed Threshold: {fixed_threshold:.4f}")
-    print(f"  - Target FPR: {fixed_fpr*100}%")
     print(f"\nUsage example:")
     print(f"  bundle = joblib.load('{model_path}')")
     print(f"  model = bundle['model']")
-    print(f"  threshold = bundle['fixed_threshold']")
     print(f"  y_prob = model.predict_proba(X_new)[:, 1]")
-    print(f"  y_pred = (y_prob >= threshold).astype(int)")
+    print(f"  y_pred = model.predict(X_new)")
 
     return model_path
 
 
-def save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, report_filename):
+def save_training_report(metrics, classification_report_dict, metadata, report_filename):
     artifacts_dir = ARTIFACTS_DIR
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     # Save results as JSON with metadata
     training_report = {
         "metadata": metadata,
-        "default_threshold_evaluation": {
-            "metrics": results_default.to_dict(orient='records')[0],
-            "classification_report": report_default
-        },
-        "fixed_threshold_evaluation": {
-            "metrics": results_fixed.to_dict(orient='records')[0],
-            "classification_report": report_fixed
+        "evaluation": {
+            "metrics": metrics,
+            "classification_report": classification_report_dict
         }
     }
 

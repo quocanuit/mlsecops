@@ -3,133 +3,91 @@ import time
 from pathlib import Path
 import os
 
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+from imblearn.ensemble import BalancedRandomForestClassifier
 from mlflow.models import infer_signature
 
-from utils.train_common import (
-    load_preprocessed_data,
-    create_metadata,
-    evaluate_model,
-    save_model,
-    save_training_report,
-    ARTIFACTS_DIR
-)
-from utils.mlflow_common import (
-    setup_mlflow,
-    start_run,
-    set_tag,
-    log_evaluation_metrics,
-    log_model_and_params,
-    log_training_report,
-    log_dataset,
-    print_run_info
-)
+from utils import train_common, mlflow_common
 
 ROOT = Path(os.getcwd())
-RANDOM_STATE_VALUE = 42
-FIXED_FPR = 0.05
-
-
-def train_model(X_train, y_train, X_test):
-    model = RandomForestClassifier(random_state=RANDOM_STATE_VALUE)
-
-    print("Training Random Forest model...")
-    start_time = time.time()
-    model.fit(X_train, y_train)
-    train_time = time.time() - start_time
-
-    # Make predictions
-    start_time = time.time()
-    y_test_pred = model.predict(X_test)
-    prediction_time = time.time() - start_time
-
-    y_test_prob = model.predict_proba(X_test)[:, 1]
-
-    # Collect metadata using common function
-    metadata = create_metadata(X_train, X_test, model, RANDOM_STATE_VALUE, FIXED_FPR)
-
-    return model, y_test_pred, y_test_prob, train_time, prediction_time, metadata
 
 
 def main():
     """Main execution function."""
-    print("RANDOM FOREST MODEL TRAINING")
+    print("BALANCED RANDOM FOREST MODEL TRAINING")
 
-    setup_mlflow()
+    mlflow_common.setup_mlflow()
 
     # Start MLflow run (no-op if MLflow disabled)
-    with start_run(run_name="random_forest_training"):
-        set_tag("model_type", "Random Forest")
-        set_tag("algorithm", "sklearn.ensemble.RandomForestClassifier")
+    with mlflow_common.start_run(run_name="brf_training"):
+        mlflow_common.set_tag("model_type", "Balanced Random Forest")
+        mlflow_common.set_tag("algorithm", "imblearn.ensemble.BalancedRandomForestClassifier")
 
         # Load preprocessed data
-        X_train_resampled, y_train_resampled, X_test_transformed, y_test = load_preprocessed_data()
+        df_preprocessed = train_common.load_preprocessed_data()
 
-        # Log dataset information
-        # log_dataset(X_train_resampled, y_train_resampled, X_test_transformed, y_test, "fraud_detection")
+        # Split data
+        X_train, X_test, y_train, y_test = train_common.split_data(df_preprocessed)
 
-        # Train the model
-        model, y_test_pred, y_test_prob, train_time, prediction_time, metadata = train_model(
-            X_train_resampled, y_train_resampled, X_test_transformed
+        # Initialize and train model
+        print("\nTraining Balanced Random Forest model...")
+        model_brf = BalancedRandomForestClassifier(
+            n_estimators=100,
+            sampling_strategy='auto',
+            max_depth=None,
+            random_state=42
         )
 
-        # Evaluate the model
-        results_default, results_fixed, fixed_threshold, report_default, report_fixed = evaluate_model(
-            "Random Forest", y_test, y_test_pred, y_test_prob, train_time, prediction_time, FIXED_FPR
-        )
+        start_time = time.time()
+        model_brf.fit(X_train, y_train)
+        train_time = time.time() - start_time
 
-        # Extract metrics for MLflow logging
-        metrics_default = results_default.to_dict(orient='records')[0]
-        metrics_fixed = results_fixed.to_dict(orient='records')[0]
+        # Predict on the test set
+        start_time = time.time()
+        y_pred = model_brf.predict(X_test)
+        y_proba = model_brf.predict_proba(X_test)[:, 1]
+        prediction_time = time.time() - start_time
 
-        log_evaluation_metrics(
-            roc_auc=metrics_default["ROC-AUC Score"],
-            logloss=metrics_default["Log Loss"],
-            train_time=metrics_default["Training Time (s)"],
-            prediction_time=metrics_default["Prediction Time (s)"],
-            total_time=metrics_default["Total Time (s)"],
-            accuracy_default=metrics_default["Accuracy"],
-            prec_default=metrics_default["Precision"],
-            rec_default=metrics_default["Recall"],
-            f1_default=metrics_default["F1 Score"],
-            fpr_default=metrics_default["FPR@threshold"],
-            tpr_default=metrics_default["TPR@threshold"],
-            fixed_threshold=metrics_fixed["Decision Threshold"],
-            accuracy_fixed=metrics_fixed["Accuracy"],
-            prec_fixed=metrics_fixed["Precision@threshold"],
-            rec_fixed=metrics_fixed["Recall@threshold"],
-            f1_fixed=metrics_fixed["F1@threshold"],
-            fpr_at=metrics_fixed["FPR@threshold"],
-            tpr_at=metrics_fixed["TPR@threshold"]
-        )
+        # Evaluate and get metrics
+        print("\nEvaluation Metrics:")
+        metrics = train_common.print_metrics(y_test, y_pred, y_proba, train_time, prediction_time)
+
+        # Create metadata
+        metadata = train_common.create_metadata(X_train, X_test, model_brf)
+        
+        # Get classification report
+        clf_report = classification_report(y_test, y_pred, output_dict=True)
+
+        # Log metrics to MLflow
+        mlflow_common.log_evaluation_metrics(metrics)
 
         # Save model bundle
-        model_path = save_model(model, "Random Forest Classifier", fixed_threshold, FIXED_FPR, metadata, "rf_model_bundle.pkl")
+        model_path = train_common.save_model(model_brf, "Balanced Random Forest Classifier", metadata, "brf_model_bundle.pkl")
 
         try:
             sig = infer_signature(
-                X_train_resampled[:100],
-                model.predict_proba(X_train_resampled[:100])[:, 1]
+                X_train[:100],
+                model_brf.predict_proba(X_train[:100])[:, 1]
             )
         except Exception:
             sig = None
-        input_example = X_train_resampled[:5]
+        input_example = X_train[:5]
 
         # Log model to MLflow
-        log_model_and_params(
-            model, "Random Forest Classifier", metadata, model_path,
-            mlflow_model_name="random_forest_model",
+        mlflow_common.log_model_and_params(
+            model_brf, "Balanced Random Forest Classifier", metadata, model_path,
+            mlflow_model_name="brf_model",
             signature=sig, input_example=input_example
         )
 
         # Save training report
-        save_training_report(results_default, results_fixed, report_default, report_fixed, metadata, "training_report_rf.json")
+        train_common.save_training_report(metrics, clf_report, metadata, "training_report_brf.json")
 
         # Log report to MLflow
-        log_training_report(ARTIFACTS_DIR / "training_report_rf.json")
+        mlflow_common.log_training_report(train_common.ARTIFACTS_DIR / "training_report_brf.json")
 
         # Print run information
-        print_run_info()
+        mlflow_common.print_run_info()
 
     print("\nTraining completed successfully!")
 
