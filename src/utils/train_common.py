@@ -19,6 +19,22 @@ ROOT = Path(os.getcwd())
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
 
 
+def load_preprocessed_data():
+    legacy_dir = ROOT / "data" / "preprocessed"
+    env_dir = os.getenv("PREPROCESSED_DIR", "").strip()
+    base_dir = Path(env_dir) if env_dir else legacy_dir
+
+    preprocessed_file = base_dir / "data_preprocessed.csv"
+    if not preprocessed_file.exists():
+        raise FileNotFoundError(f"Preprocessed data not found at: {preprocessed_file}")
+
+    print(f"[load_preprocessed_data] Loading from: {base_dir}")
+    df_preprocessed = pd.read_csv(preprocessed_file)
+    print(f"  data_preprocessed: {df_preprocessed.shape}")
+
+    return df_preprocessed
+
+
 def split_data(df_preprocessed):
     from sklearn.model_selection import train_test_split
     
@@ -37,21 +53,6 @@ def split_data(df_preprocessed):
     print(f"Test fraud rate: {y_test.mean():.4f}")
     
     return X_train, X_test, y_train, y_test
-
-
-def load_preprocessed_data():
-    env_dir = os.getenv("PREPROCESSED_DIR", "").strip()
-    base_dir = Path(env_dir) if env_dir else ARTIFACTS_DIR / "preprocessed"
-
-    preprocessed_file = base_dir / "data_preprocessed.csv"
-    if not preprocessed_file.exists():
-        raise FileNotFoundError(f"Preprocessed data not found at: {preprocessed_file}")
-
-    print(f"[load_preprocessed_data] Loading from: {base_dir}")
-    df_preprocessed = pd.read_csv(preprocessed_file)
-    print(f"  data_preprocessed: {df_preprocessed.shape}")
-
-    return df_preprocessed
 
 
 def create_metadata(X_train, X_test, model):
