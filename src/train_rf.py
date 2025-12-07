@@ -13,7 +13,6 @@ ROOT = Path(os.getcwd())
 
 
 def main():
-    """Main execution function."""
     print("BALANCED RANDOM FOREST MODEL TRAINING")
 
     mlflow_common.setup_mlflow()
@@ -54,7 +53,7 @@ def main():
 
         # Create metadata
         metadata = train_common.create_metadata(X_train, X_test, model_brf)
-        
+
         # Get classification report
         clf_report = classification_report(y_test, y_pred, output_dict=True)
 

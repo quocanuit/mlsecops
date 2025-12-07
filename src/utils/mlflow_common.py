@@ -45,19 +45,13 @@ def setup_mlflow(tracking_uri=None, experiment_name="mlsecops-fraud-detection"):
 
 
 def log_evaluation_metrics(metrics):
-    """
-    Log evaluation metrics to MLflow.
-    
-    Args:
-        metrics (dict): Dictionary containing all metrics to log
-    """
     if not is_mlflow_enabled():
         return
 
     try:
         for key, value in metrics.items():
             mlflow.log_metric(key, value)
-        
+
         print("[MLflow] Logged evaluation metrics")
     except Exception as e:
         print(f"[MLflow] Warning: Could not log metrics - {e}")

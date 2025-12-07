@@ -37,21 +37,21 @@ def load_preprocessed_data():
 
 def split_data(df_preprocessed):
     from sklearn.model_selection import train_test_split
-    
+
     X = df_preprocessed.drop('fraud_bool', axis=1)
     y = df_preprocessed['fraud_bool']
-    
+
     categorical_features = X.select_dtypes(include=['object', 'category']).columns
     X[categorical_features] = X[categorical_features].astype('category')
 
     # Train-Test Split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y, shuffle=True)
-    
+
     print(f"Train set: {X_train.shape[0]} samples")
     print(f"Test set: {X_test.shape[0]} samples")
     print(f"Train fraud rate: {y_train.mean():.4f}")
     print(f"Test fraud rate: {y_test.mean():.4f}")
-    
+
     return X_train, X_test, y_train, y_test
 
 
@@ -72,7 +72,7 @@ def create_metadata(X_train, X_test, model):
 
 def print_metrics(y_test, y_pred, y_proba, train_time=None, prediction_time=None):
     from sklearn.metrics import precision_score, recall_score, f1_score
-    
+
     # Compute metrics
     accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred)
@@ -88,7 +88,7 @@ def print_metrics(y_test, y_pred, y_proba, train_time=None, prediction_time=None
     print(f"F1-Score: {f1:.4f}")
     print(f"AUC-ROC: {roc_auc:.4f}")
     print(f"Log Loss: {logloss:.4f}")
-    
+
     # Build metrics dict
     metrics = {
         "accuracy": float(accuracy),
@@ -98,7 +98,7 @@ def print_metrics(y_test, y_pred, y_proba, train_time=None, prediction_time=None
         "roc_auc": float(roc_auc),
         "log_loss": float(logloss)
     }
-    
+
     # Add timing metrics if provided
     if train_time is not None:
         metrics["train_time_seconds"] = float(train_time)
@@ -106,7 +106,7 @@ def print_metrics(y_test, y_pred, y_proba, train_time=None, prediction_time=None
         metrics["prediction_time_seconds"] = float(prediction_time)
     if train_time is not None and prediction_time is not None:
         metrics["total_time_seconds"] = float(train_time + prediction_time)
-    
+
     return metrics
 
 
