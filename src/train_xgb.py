@@ -3,7 +3,7 @@ import time
 from pathlib import Path
 import os
 
-import xgboost as xgb
+from xgboost import XGBClassifier
 from sklearn.metrics import classification_report
 from mlflow.models import infer_signature
 
