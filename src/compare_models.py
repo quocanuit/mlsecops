@@ -99,11 +99,11 @@ def compare_models(rf_run, xgb_run) -> Dict:
     print("MODEL COMPARISON RESULTS")
     print("=" * 70)
 
-    print(f"\n{'Metric':<20} {'Random Forest':<20} {'XGBoost':<20} {'Winner'}")
+    print(f"\n{'Metric':<20} {'Balanced RF':<20} {'XGBoost':<20} {'Winner'}")
     print("-" * 70)
-    print(f"{'Recall':<20} {rf_recall:<20.4f} {xgb_recall:<20.4f} {'RF' if rf_recall > xgb_recall else 'XGB'}")
-    print(f"{'ROC-AUC':<20} {rf_roc_auc:<20.4f} {xgb_roc_auc:<20.4f} {'RF' if rf_roc_auc > xgb_roc_auc else 'XGB'}")
-    print(f"{'Precision':<20} {rf_precision:<20.4f} {xgb_precision:<20.4f} {'RF' if rf_precision > xgb_precision else 'XGB'}")
+    print(f"{'Recall':<20} {rf_recall:<20.4f} {xgb_recall:<20.4f} {'BRF' if rf_recall > xgb_recall else 'XGB'}")
+    print(f"{'ROC-AUC':<20} {rf_roc_auc:<20.4f} {xgb_roc_auc:<20.4f} {'BRF' if rf_roc_auc > xgb_roc_auc else 'XGB'}")
+    print(f"{'Precision':<20} {rf_precision:<20.4f} {xgb_precision:<20.4f} {'BRF' if rf_precision > xgb_precision else 'XGB'}")
 
     print("\n" + "-" * 70)
     print(f"{'AGGREGATE SCORE':<20} {rf_aggregate:<20.4f} {xgb_aggregate:<20.4f}")
@@ -112,19 +112,18 @@ def compare_models(rf_run, xgb_run) -> Dict:
     # Determine winner based on aggregate score
     if rf_aggregate > xgb_aggregate:
         winner_run = rf_run
-        winner_name = "Random Forest"
+        winner_name = rf_run.data.tags.get("model_type", "Balanced Random Forest")
         winner_score = rf_aggregate
         diff = rf_aggregate - xgb_aggregate
     else:
         winner_run = xgb_run
-        winner_name = "XGBoost"
+        winner_name = xgb_run.data.tags.get("model_type", "XGBoost")
         winner_score = xgb_aggregate
         diff = xgb_aggregate - rf_aggregate
 
     print("\n" + "=" * 70)
     print(f"WINNER: {winner_name}")
     print(f"   Aggregate Score: {winner_score:.4f}")
-    print(f"   Better by: {diff:.4f} ({diff*100:.2f}%)")
     print(f"   Run ID: {winner_run.info.run_id}")
     print("=" * 70)
 
@@ -145,7 +144,13 @@ def register_model(run, model_name: str, registry_name: str = "fraud-detection-m
     """Register the winning model to MLflow Model Registry."""
     client = MlflowClient()
 
-    model_uri = f"runs:/{run.info.run_id}/brf_model" if "Random Forest" in model_name else f"runs:/{run.info.run_id}/xgb_model"
+    # Model artifact path in MLflow run (must match mlflow_model_name in training scripts)
+    # Check run tags to determine correct artifact path
+    model_type_tag = run.data.tags.get("model_type", "")
+    if "Random Forest" in model_type_tag:  # Matches both "Random Forest" and "Balanced Random Forest"
+        model_uri = f"runs:/{run.info.run_id}/brf_model"
+    else:
+        model_uri = f"runs:/{run.info.run_id}/xgb_model"
 
     print(f"\n Registering model to Model Registry...")
     print(f"   Model: {model_name}")
@@ -160,7 +165,7 @@ def register_model(run, model_name: str, registry_name: str = "fraud-detection-m
         client.update_model_version(
             name=registry_name,
             version=model_version.version,
-            description=f"{model_name} - Auto-selected based on Fixed Recall @ FPR=5%"
+            description=f"{model_name} - Auto-selected based on aggregate score (Recall=40%, AUC=40%, Precision=20%)"
         )
 
         # Add tags
@@ -175,7 +180,7 @@ def register_model(run, model_name: str, registry_name: str = "fraud-detection-m
             name=registry_name,
             version=model_version.version,
             key="selection_metric",
-            value="fixed_recall"
+            value="aggregate_score"
         )
 
         print(f"   Model registered successfully!")
@@ -207,7 +212,7 @@ def main():
 
     if not rf_run or not xgb_run:
         print("ERROR: Could not find both RF and XGBoost runs")
-        print(f"  Random Forest run: {'Found' if rf_run else 'Not found'}")
+        print(f"  Balanced Random Forest run: {'Found' if rf_run else 'Not found'}")
         print(f"  XGBoost run: {'Found' if xgb_run else 'Not found'}")
         sys.exit(1)
 
