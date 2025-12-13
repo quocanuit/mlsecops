@@ -53,51 +53,128 @@ def get_latest_model_runs(experiment_name: str = "mlsecops-fraud-detection") -> 
 
 
 def compare_models(rf_run, xgb_run) -> Dict:
-    """Compare models based on fixed_recall metric."""
+    """Compare models using normalized metrics and aggregate scoring."""
 
     # Extract metrics
     rf_metrics = rf_run.data.metrics
     xgb_metrics = xgb_run.data.metrics
 
-    rf_recall = rf_metrics.get("fixed_recall", 0.0)
-    xgb_recall = xgb_metrics.get("fixed_recall", 0.0)
-
+    # Get all metrics (with fallback to 0.0)
+    rf_recall = rf_metrics.get("recall", 0.0)
+    xgb_recall = xgb_metrics.get("recall", 0.0)
+    
     rf_roc_auc = rf_metrics.get("roc_auc", 0.0)
     xgb_roc_auc = xgb_metrics.get("roc_auc", 0.0)
+    
+    rf_log_loss = rf_metrics.get("log_loss", 1.0)
+    xgb_log_loss = xgb_metrics.get("log_loss", 1.0)
+    
+    rf_f1 = rf_metrics.get("f1_score", 0.0)
+    xgb_f1 = xgb_metrics.get("f1_score", 0.0)
+    
+    rf_precision = rf_metrics.get("precision", 0.0)
+    xgb_precision = xgb_metrics.get("precision", 0.0)
+    
+    rf_time = rf_metrics.get("total_time_seconds", 0.0)
+    xgb_time = xgb_metrics.get("total_time_seconds", 0.0)
 
-    print("=" * 70)
-    print("MODEL COMPARISON RESULTS")
-    print("=" * 70)
-    print(f"\nMetric Priority: Fixed Recall @ FPR=5%")
-    print(f"\n{'Model':<20} {'Fixed Recall':<15} {'ROC-AUC':<12} {'Run ID'}")
-    print("-" * 70)
-    print(f"{'Random Forest':<20} {rf_recall:<15.4f} {rf_roc_auc:<12.4f} {rf_run.info.run_id[:8]}")
-    print(f"{'XGBoost':<20} {xgb_recall:<15.4f} {xgb_roc_auc:<12.4f} {xgb_run.info.run_id[:8]}")
-    print("-" * 70)
+    # Store in lists for normalization
+    recall_list = [rf_recall, xgb_recall]
+    roc_auc_list = [rf_roc_auc, xgb_roc_auc]
+    log_loss_list = [rf_log_loss, xgb_log_loss]
+    f1_list = [rf_f1, xgb_f1]
+    time_list = [rf_time, xgb_time]
 
-    # Compare based on fixed_recall
-    if rf_recall > xgb_recall:
+    # Normalize metrics (0-1 scale, higher is better)
+    def normalize(value, min_val, max_val):
+        if max_val == min_val:
+            return 0.5  # Equal performance
+        return (value - min_val) / (max_val - min_val)
+    
+    def normalize_inverse(value, min_val, max_val):
+        """For metrics where lower is better (log_loss, time)"""
+        if max_val == min_val:
+            return 0.5
+        return (max_val - value) / (max_val - min_val)
+
+    # Normalize RF metrics
+    rf_norm_recall = normalize(rf_recall, min(recall_list), max(recall_list))
+    rf_norm_roc_auc = normalize(rf_roc_auc, min(roc_auc_list), max(roc_auc_list))
+    rf_norm_log_loss = normalize_inverse(rf_log_loss, min(log_loss_list), max(log_loss_list))
+    rf_norm_f1 = normalize(rf_f1, min(f1_list), max(f1_list))
+    rf_norm_time = normalize_inverse(rf_time, min(time_list), max(time_list))
+
+    # Normalize XGBoost metrics
+    xgb_norm_recall = normalize(xgb_recall, min(recall_list), max(recall_list))
+    xgb_norm_roc_auc = normalize(xgb_roc_auc, min(roc_auc_list), max(roc_auc_list))
+    xgb_norm_log_loss = normalize_inverse(xgb_log_loss, min(log_loss_list), max(log_loss_list))
+    xgb_norm_f1 = normalize(xgb_f1, min(f1_list), max(f1_list))
+    xgb_norm_time = normalize_inverse(xgb_time, min(time_list), max(time_list))
+
+    # Calculate aggregate scores (weighted average)
+    # Weights: Recall=0.30, ROC-AUC=0.25, F1=0.20, Log Loss=0.15, Time=0.10
+    rf_aggregate = (0.30 * rf_norm_recall + 0.25 * rf_norm_roc_auc + 
+                    0.20 * rf_norm_f1 + 0.15 * rf_norm_log_loss + 0.10 * rf_norm_time)
+    
+    xgb_aggregate = (0.30 * xgb_norm_recall + 0.25 * xgb_norm_roc_auc + 
+                     0.20 * xgb_norm_f1 + 0.15 * xgb_norm_log_loss + 0.10 * xgb_norm_time)
+
+    # Print detailed comparison
+    print("=" * 90)
+    print("MODEL COMPARISON RESULTS - COMPREHENSIVE ANALYSIS")
+    print("=" * 90)
+    
+    print(f"\n{'Metric':<25} {'Random Forest':<20} {'XGBoost':<20} {'Winner'}")
+    print("-" * 90)
+    print(f"{'Recall':<25} {rf_recall:<20.4f} {xgb_recall:<20.4f} {'RF' if rf_recall > xgb_recall else 'XGB'}")
+    print(f"{'ROC-AUC':<25} {rf_roc_auc:<20.4f} {xgb_roc_auc:<20.4f} {'RF' if rf_roc_auc > xgb_roc_auc else 'XGB'}")
+    print(f"{'F1-Score':<25} {rf_f1:<20.4f} {xgb_f1:<20.4f} {'RF' if rf_f1 > xgb_f1 else 'XGB'}")
+    print(f"{'Precision':<25} {rf_precision:<20.4f} {xgb_precision:<20.4f} {'RF' if rf_precision > xgb_precision else 'XGB'}")
+    print(f"{'Log Loss':<25} {rf_log_loss:<20.4f} {xgb_log_loss:<20.4f} {'RF' if rf_log_loss < xgb_log_loss else 'XGB'}")
+    print(f"{'Total Time (s)':<25} {rf_time:<20.4f} {xgb_time:<20.4f} {'RF' if rf_time < xgb_time else 'XGB'}")
+    
+    print("\n" + "=" * 90)
+    print("NORMALIZED SCORES (0-1 scale, higher is better)")
+    print("=" * 90)
+    print(f"{'Metric':<25} {'RF Normalized':<20} {'XGB Normalized':<20} {'Weight'}")
+    print("-" * 90)
+    print(f"{'Recall':<25} {rf_norm_recall:<20.4f} {xgb_norm_recall:<20.4f} {'30%'}")
+    print(f"{'ROC-AUC':<25} {rf_norm_roc_auc:<20.4f} {xgb_norm_roc_auc:<20.4f} {'25%'}")
+    print(f"{'F1-Score':<25} {rf_norm_f1:<20.4f} {xgb_norm_f1:<20.4f} {'20%'}")
+    print(f"{'Log Loss (inverted)':<25} {rf_norm_log_loss:<20.4f} {xgb_norm_log_loss:<20.4f} {'15%'}")
+    print(f"{'Time (inverted)':<25} {rf_norm_time:<20.4f} {xgb_norm_time:<20.4f} {'10%'}")
+    print("-" * 90)
+    print(f"{'AGGREGATE SCORE':<25} {rf_aggregate:<20.4f} {xgb_aggregate:<20.4f}")
+    
+    # Determine winner based on aggregate score
+    if rf_aggregate > xgb_aggregate:
         winner_run = rf_run
         winner_name = "Random Forest"
-        winner_recall = rf_recall
-        diff = rf_recall - xgb_recall
+        winner_score = rf_aggregate
+        diff = rf_aggregate - xgb_aggregate
     else:
         winner_run = xgb_run
         winner_name = "XGBoost"
-        winner_recall = xgb_recall
-        diff = xgb_recall - rf_recall
+        winner_score = xgb_aggregate
+        diff = xgb_aggregate - rf_aggregate
 
-    print(f"\n WINNER: {winner_name}")
-    print(f"   Fixed Recall: {winner_recall:.4f}")
+    print("\n" + "=" * 90)
+    print(f"WINNER: {winner_name}")
+    print(f"   Aggregate Score: {winner_score:.4f}")
     print(f"   Better by: {diff:.4f} ({diff*100:.2f}%)")
-    print("=" * 70)
+    print(f"   Run ID: {winner_run.info.run_id}")
+    print("=" * 90)
 
     return {
         "winner_run": winner_run,
         "winner_name": winner_name,
-        "winner_recall": winner_recall,
+        "winner_score": winner_score,
+        "rf_aggregate": rf_aggregate,
+        "xgb_aggregate": xgb_aggregate,
         "rf_recall": rf_recall,
-        "xgb_recall": xgb_recall
+        "xgb_recall": xgb_recall,
+        "rf_roc_auc": rf_roc_auc,
+        "xgb_roc_auc": xgb_roc_auc
     }
 
 
