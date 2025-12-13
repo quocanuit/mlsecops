@@ -18,4 +18,4 @@ servingDeployment:
   imageTag: v0.0.2
   ecrRegistry: 625715126488.dkr.ecr.us-east-1.amazonaws.com/registry
   mlflowTrackingUrl: http://mlflow.mlflow.svc.cluster.local:5000
-  modelVersion: 3
+  modelVersion: 4
