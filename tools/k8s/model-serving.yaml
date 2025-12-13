@@ -21,6 +21,7 @@ spec:
       containers:
       - name: mlflow-model-server
         image: IMAGE_PLACEHOLDER
+        imagePullPolicy: Always
         command:
           - mlflow
           - models
