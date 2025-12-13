@@ -105,9 +105,13 @@ def save_report(report):
 
 def main():
     df = pd.read_csv(VALIDATED_DIR / "Base_validated.csv")
+    print(f"[INFO] Loaded {df.shape[0]:,} rows, {df.shape[1]} columns")
 
-    df_cleaned = df.copy()
-    df_cleaned = df_cleaned.drop(columns=[
+    # Store original row count before modifications
+    original_rows = df.shape[0]
+
+    # Drop columns - drop() returns new DataFrame, no need for copy()
+    df_cleaned = df.drop(columns=[
         "bank_months_count",
         "prev_address_months_count",
         "velocity_4w"
@@ -121,24 +125,32 @@ def main():
     'intended_balcon_amount'
     ]
 
+    print("[INFO] Replacing -1 with NaN in missing value columns...")
     df_cleaned[cols_missing] = df_cleaned[cols_missing].replace(-1, np.nan)
 
-    df_cleaned= df_cleaned.dropna()
+    rows_before_dropna = df_cleaned.shape[0]
+    df_cleaned = df_cleaned.dropna()
+    print(f"[INFO] Dropped {rows_before_dropna - df_cleaned.shape[0]:,} rows with NaN")
+    print(f"[INFO] Remaining: {df_cleaned.shape[0]:,} rows")
 
+    print("[INFO] Starting preprocessing with LabelEncoder and StandardScaler...")
     df_preprocessed, label_encoders, scaler = preprocess_with_labelencoder(df=df_cleaned, col_label="fraud_bool")
 
     # Get numerical features for report
     numerical_features = df_cleaned.select_dtypes(include=["number"]).columns.tolist()
     numerical_features = [f for f in numerical_features if f != "fraud_bool"]
 
-    # Generate report
+    # Generate report using stored original_rows count
+    # Create minimal df_original placeholder to match function signature
+    df_original_placeholder = pd.DataFrame({'_placeholder': range(original_rows)})
     report = generate_report(
-        df_original=df,
+        df_original=df_original_placeholder,
         df_cleaned=df_cleaned,
         df_preprocessed=df_preprocessed,
         label_encoders=label_encoders,
         numerical_features=numerical_features
     )
+    print("[INFO] Preprocessing completed successfully!")
 
     # Save preprocessed data
     data_dir = save_preprocessed_data(df_preprocessed, label_encoders, scaler)
