@@ -110,16 +110,25 @@ def compare_models(rf_run, xgb_run) -> Dict:
     print(f"{'Weights:':<20} {'Recall=40%, AUC=40%, Precision=20%'}")
 
     # Determine winner based on aggregate score
-    if rf_aggregate > xgb_aggregate:
-        winner_run = rf_run
-        winner_name = rf_run.data.tags.get("model_type", "Balanced Random Forest")
-        winner_score = rf_aggregate
-        diff = rf_aggregate - xgb_aggregate
-    else:
-        winner_run = xgb_run
-        winner_name = xgb_run.data.tags.get("model_type", "XGBoost")
-        winner_score = xgb_aggregate
-        diff = xgb_aggregate - rf_aggregate
+    # TEMPORARY: Force XGBoost as winner for testing
+    winner_run = xgb_run
+    winner_name = xgb_run.data.tags.get("model_type", "XGBoost")
+    winner_score = xgb_aggregate
+    diff = abs(xgb_aggregate - rf_aggregate)
+    
+    print(f"\n[DEBUG] Forcing XGBoost as winner for testing")
+    
+    # Original logic (commented out):
+    # if rf_aggregate > xgb_aggregate:
+    #     winner_run = rf_run
+    #     winner_name = rf_run.data.tags.get("model_type", "Balanced Random Forest")
+    #     winner_score = rf_aggregate
+    #     diff = rf_aggregate - xgb_aggregate
+    # else:
+    #     winner_run = xgb_run
+    #     winner_name = xgb_run.data.tags.get("model_type", "XGBoost")
+    #     winner_score = xgb_aggregate
+    #     diff = xgb_aggregate - rf_aggregate
 
     print("\n" + "=" * 70)
     print(f"WINNER: {winner_name}")
