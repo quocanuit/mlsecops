@@ -1,10 +1,8 @@
 import pandas as pd
+import numpy as np
 import json
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.compose import ColumnTransformer
-from sklearn.utils import resample
-from sklearn.model_selection import train_test_split
-from imblearn.over_sampling import SMOTE
+import pickle
+from sklearn.preprocessing import StandardScaler, LabelEncoder
 from pathlib import Path
 import sys
 import os
@@ -13,231 +11,79 @@ ROOT = Path(os.getcwd())
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
 VALIDATED_DIR = Path(os.getenv("VALIDATED_DIR", str(ROOT / "data" / "validated")))
 PREPROCESSED_DIR = Path(os.getenv("PREPROCESSED_DIR", str(ROOT / "artifacts" / "preprocessed")))
-RANDOM_STATE_VALUE = 42
-TRAIN_WINDOW = 6
-TEST_WINDOW = 2
-
-# Split mode control via environment variable
-SPLIT_MODE = os.getenv("SPLIT_MODE", "time-based")  # Options: "time-based", "stratified"
 
 
-def preprocess_data():
-    # Load data
-    df_original = pd.read_csv(VALIDATED_DIR / "Base_validated.csv")
-    print("df.shape:", df_original.shape)
+def preprocess_with_labelencoder(df: pd.DataFrame, col_label: str):
+    # Identify categorical and numerical features
+    categorical_features = df.select_dtypes(include=["object", "category"]).columns
+    numerical_features = df.select_dtypes(include=["number"]).columns
 
-    # Balance classes using downsampling
-    df_fraud = df_original[df_original['fraud_bool'] == 1]
-    df_non_fraud = df_original[df_original['fraud_bool'] == 0]
+    categorical_features = [
+        features for features in categorical_features if features != col_label
+    ]
+    numerical_features = [
+        features for features in numerical_features if features != col_label
+    ]
 
-    df_non_fraud_downsampled = resample(df_non_fraud,
-                                        replace=False,
-                                        n_samples=len(df_fraud),
-                                        random_state=RANDOM_STATE_VALUE)
+    # Initialize dictionaries to store the encoders and scaler
+    label_encoders = {}
+    scaler = StandardScaler()
 
-    df_balanced = pd.concat([df_fraud, df_non_fraud_downsampled])
-    df_balanced = df_balanced.sample(frac=1, random_state=RANDOM_STATE_VALUE).reset_index(drop=True)
+    # Encode categorical features using LabelEncoder
+    for col in categorical_features:
+        label_encoders[col] = LabelEncoder()
+        df[col] = label_encoders[col].fit_transform(df[col])
 
-    # Define features
-    categorical_features = ['payment_type', 'employment_status', 'housing_status', 'source', 'device_os']
-    numerical_features = df_balanced.drop(columns=['fraud_bool', 'month'] + categorical_features).columns.tolist()
+    # Scale numerical features
+    df[numerical_features] = scaler.fit_transform(df[numerical_features])
 
-    # Create preprocessor
-    preprocessor = ColumnTransformer(
-        transformers=[
-            ('num', StandardScaler(), numerical_features),
-            ('cat', OneHotEncoder(sparse_output=False, drop='first'), categorical_features)
-        ]
-    )
-
-    max_month = df_balanced['month'].max()
-
-    # Split data based on SPLIT_MODE
-    if SPLIT_MODE == "stratified":
-        print(f"Using STRATIFIED split (80/20)")
-
-        # Drop month column for stratified split
-        df_split = df_balanced.drop(columns=['month'])
-        X = df_split.drop('fraud_bool', axis=1)
-        y = df_split['fraud_bool']
-
-        # Stratified split
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y,
-            test_size=0.2,
-            stratify=y,
-            random_state=RANDOM_STATE_VALUE
-        )
-
-        train_start = train_end = test_start = test_end = None  # Not applicable for stratified split
-
-    else:  # Default: time-based
-        print(f"Using TIME-BASED split ({TRAIN_WINDOW} months train, {TEST_WINDOW} months test)")
-
-        # Split data by month
-        train_start = max_month - (TRAIN_WINDOW + TEST_WINDOW) + 1
-        train_end = max_month - TEST_WINDOW
-        test_start = train_end + 1
-        test_end = max_month
-
-        train_data = df_balanced[df_balanced['month'].between(train_start, train_end)]
-        test_data = df_balanced[df_balanced['month'].between(test_start, test_end)]
-
-        train_data = train_data.drop(columns=['month'])
-        test_data = test_data.drop(columns=['month'])
-
-        train_data.reset_index(drop=True, inplace=True)
-        test_data.reset_index(drop=True, inplace=True)
-
-        # Separate features and target
-        X_train = train_data.drop('fraud_bool', axis=1)
-        y_train = train_data['fraud_bool']
-        X_test = test_data.drop('fraud_bool', axis=1)
-        y_test = test_data['fraud_bool']
-
-    # Transform features
-    X_train_transformed = preprocessor.fit_transform(X_train)
-    X_test_transformed = preprocessor.transform(X_test)
-
-    # Apply SMOTE
-    smote = SMOTE(random_state=RANDOM_STATE_VALUE)
-    X_train_resampled, y_train_resampled = smote.fit_resample(X_train_transformed, y_train)
-
-    print("Train size:", X_train_resampled.shape[0])
-    print("Test size:", X_test_transformed.shape[0])
-
-    # Generate preprocessing report
-    report = generate_report(
-        df_original=df_original,
-        df_balanced=df_balanced,
-        X_train_original=X_train_transformed,
-        y_train_original=y_train,
-        X_train_resampled=X_train_resampled,
-        y_train_resampled=y_train_resampled,
-        X_test_transformed=X_test_transformed,
-        y_test=y_test,
-        categorical_features=categorical_features,
-        numerical_features=numerical_features,
-        train_start=train_start,
-        train_end=train_end,
-        test_start=test_start,
-        test_end=test_end
-    )
-
-    return X_train_resampled, y_train_resampled, X_test_transformed, y_test, report
+    return df, label_encoders, scaler
 
 
-def generate_report(
-        df_original, df_balanced,
-        X_train_original, y_train_original,
-        X_train_resampled, y_train_resampled,
-        X_test_transformed, y_test,
-        categorical_features, numerical_features,
-        train_start, train_end, test_start, test_end):
+
+def generate_report(df_original, df_cleaned, df_preprocessed, label_encoders, numerical_features):
+    categorical_features = list(label_encoders.keys())
 
     report = {
-        "configurations": {
-            "random_state": RANDOM_STATE_VALUE,
-            "split_mode": SPLIT_MODE,
-            "train_months": f"{train_start}-{train_end}" if SPLIT_MODE == "time-based" else "N/A (stratified)",
-            "test_months": f"{test_start}-{test_end}" if SPLIT_MODE == "time-based" else "N/A (stratified)",
-            "train_window_months": TRAIN_WINDOW if SPLIT_MODE == "time-based" else "N/A",
-            "test_window_months": TEST_WINDOW if SPLIT_MODE == "time-based" else "N/A",
-            "balance_method": "downsampling",
-            "oversampling_method": "SMOTE",
-            "scaler": "StandardScaler",
-            "encoder": "OneHotEncoder (drop_first=True)"
-        },
-        "original_data": {
-            "total_rows": int(df_original.shape[0]),
-            "total_columns": int(df_original.shape[1]),
-            "fraud_count": int(df_original['fraud_bool'].sum()),
-            "non_fraud_count": int((df_original['fraud_bool'] == 0).sum()),
-            "fraud_rate": float(df_original['fraud_bool'].mean())
-        },
-        "balanced_data": {
-            "total_rows": int(df_balanced.shape[0]),
-            "fraud_count": int(df_balanced['fraud_bool'].sum()),
-            "non_fraud_count": int((df_balanced['fraud_bool'] == 0).sum()),
-            "fraud_rate": float(df_balanced['fraud_bool'].mean()),
-            "downsampling_ratio": float(df_balanced.shape[0] / df_original.shape[0])
+        "method": "LabelEncoder + StandardScaler",
+        "data": {
+            "original_rows": int(df_original.shape[0]),
+            "cleaned_rows": int(df_cleaned.shape[0]),
+            "rows_dropped": int(df_original.shape[0] - df_cleaned.shape[0]),
+            "fraud_rate": round(float(df_preprocessed['fraud_bool'].mean()), 4)
         },
         "features": {
-            "categorical_features": categorical_features,
-            "categorical_count": len(categorical_features),
-            "numerical_features": numerical_features,
-            "numerical_count": len(numerical_features),
-            "total_features": len(categorical_features) + len(numerical_features)
-        },
-        "train_data_before_smote": {
-            "samples": int(X_train_original.shape[0]),
-            "fraud_count": int(y_train_original.sum()),
-            "non_fraud_count": int((y_train_original == 0).sum()),
-            "fraud_rate": float(y_train_original.mean())
-        },
-        "train_data_after_smote": {
-            "samples": int(X_train_resampled.shape[0]),
-            "features": int(X_train_resampled.shape[1]),
-            "fraud_count": int(y_train_resampled.sum()),
-            "non_fraud_count": int((y_train_resampled == 0).sum()),
-            "fraud_rate": float(y_train_resampled.mean()),
-            "smote_increase_ratio": float(X_train_resampled.shape[0] / X_train_original.shape[0])
-        },
-        "test_data": {
-            "samples": int(X_test_transformed.shape[0]),
-            "features": int(X_test_transformed.shape[1]),
-            "fraud_count": int(y_test.sum()),
-            "non_fraud_count": int((y_test == 0).sum()),
-            "fraud_rate": float(y_test.mean())
-        },
-        "data_split": {
-            "train_test_ratio": float(
-                X_train_resampled.shape[0] /
-                (X_train_resampled.shape[0] + X_test_transformed.shape[0])
-            ),
-            "train_percentage": float(
-                X_train_resampled.shape[0] /
-                (X_train_resampled.shape[0] + X_test_transformed.shape[0]) * 100
-            ),
-            "test_percentage": float(
-                X_test_transformed.shape[0] /
-                (X_train_resampled.shape[0] + X_test_transformed.shape[0]) * 100
-            )
+            "categorical": len(categorical_features),
+            "numerical": len(numerical_features),
+            "total": len(categorical_features) + len(numerical_features)
         }
     }
 
     return report
 
 
-def save_preprocessed_data(X_train, y_train, X_test, y_test):
+def save_preprocessed_data(df_preprocessed, label_encoders, scaler):
     # Create preprocessed_data directory
     preprocessed_data_dir = PREPROCESSED_DIR
     preprocessed_data_dir.mkdir(parents=True, exist_ok=True)
 
-    n_features = X_train.shape[1]
-    feature_names = [f"feature_{i}" for i in range(n_features)]
+    # Save preprocessed dataframe
+    df_preprocessed.to_csv(preprocessed_data_dir / "data_preprocessed.csv", index=False)
 
-    # Save training data
-    X_train_df = pd.DataFrame(X_train, columns=feature_names)
-    y_train_df = pd.DataFrame(y_train, columns=['fraud_bool'])
+    # Save label encoders
+    with open(preprocessed_data_dir / "label_encoders.pkl", "wb") as f:
+        pickle.dump(label_encoders, f)
 
-    X_train_df.to_csv(preprocessed_data_dir / "X_train_resampled.csv", index=False)
-    y_train_df.to_csv(preprocessed_data_dir / "y_train_resampled.csv", index=False)
-
-    # Save test data
-    X_test_df = pd.DataFrame(X_test, columns=feature_names)
-    y_test_df = pd.DataFrame(y_test, columns=['fraud_bool'])
-
-    X_test_df.to_csv(preprocessed_data_dir / "X_test_transformed.csv", index=False)
-    y_test_df.to_csv(preprocessed_data_dir / "y_test.csv", index=False)
+    # Save scaler
+    with open(preprocessed_data_dir / "scaler.pkl", "wb") as f:
+        pickle.dump(scaler, f)
 
     print("[INFO] PREPROCESSED DATA SAVED")
     print(f"Directory: {preprocessed_data_dir}")
     print(f"Files created:")
-    print(f"  - X_train_resampled.csv ({X_train_df.shape[0]} rows, {X_train_df.shape[1]} features)")
-    print(f"  - y_train_resampled.csv ({y_train_df.shape[0]} rows)")
-    print(f"  - X_test_transformed.csv ({X_test_df.shape[0]} rows, {X_test_df.shape[1]} features)")
-    print(f"  - y_test.csv ({y_test_df.shape[0]} rows)")
+    print(f"  - data_preprocessed.csv ({df_preprocessed.shape[0]} rows, {df_preprocessed.shape[1]} columns)")
+    print(f"  - label_encoders.pkl (encoders for {len(label_encoders)} categorical features)")
+    print(f"  - scaler.pkl (StandardScaler for numerical features)")
 
     return preprocessed_data_dir
 
@@ -258,16 +104,61 @@ def save_report(report):
 
 
 def main():
-    X_train, y_train, X_test, y_test, report = preprocess_data()
+    df = pd.read_csv(VALIDATED_DIR / "Base_validated.csv")
+    print(f"[INFO] Loaded {df.shape[0]:,} rows, {df.shape[1]} columns")
+
+    # Store original row count before modifications
+    original_rows = df.shape[0]
+
+    # Drop columns - drop() returns new DataFrame, no need for copy()
+    df_cleaned = df.drop(columns=[
+        "bank_months_count",
+        "prev_address_months_count",
+        "velocity_4w"
+        ]
+    )
+
+    cols_missing = [
+    'current_address_months_count',
+    'session_length_in_minutes',
+    'device_distinct_emails_8w',
+    'intended_balcon_amount'
+    ]
+
+    print("[INFO] Replacing -1 with NaN in missing value columns...")
+    df_cleaned[cols_missing] = df_cleaned[cols_missing].replace(-1, np.nan)
+
+    rows_before_dropna = df_cleaned.shape[0]
+    df_cleaned = df_cleaned.dropna()
+    print(f"[INFO] Dropped {rows_before_dropna - df_cleaned.shape[0]:,} rows with NaN")
+    print(f"[INFO] Remaining: {df_cleaned.shape[0]:,} rows")
+
+    print("[INFO] Starting preprocessing with LabelEncoder and StandardScaler...")
+    df_preprocessed, label_encoders, scaler = preprocess_with_labelencoder(df=df_cleaned, col_label="fraud_bool")
+
+    # Get numerical features for report
+    numerical_features = df_cleaned.select_dtypes(include=["number"]).columns.tolist()
+    numerical_features = [f for f in numerical_features if f != "fraud_bool"]
+
+    # Generate report using stored original_rows count
+    # Create minimal df_original placeholder to match function signature
+    df_original_placeholder = pd.DataFrame({'_placeholder': range(original_rows)})
+    report = generate_report(
+        df_original=df_original_placeholder,
+        df_cleaned=df_cleaned,
+        df_preprocessed=df_preprocessed,
+        label_encoders=label_encoders,
+        numerical_features=numerical_features
+    )
+    print("[INFO] Preprocessing completed successfully!")
 
     # Save preprocessed data
-    data_dir = save_preprocessed_data(X_train, y_train, X_test, y_test)
+    data_dir = save_preprocessed_data(df_preprocessed, label_encoders, scaler)
 
+    # Save report
     save_report(report)
 
     print("\nPreprocessing completed successfully!")
-    print(f"Final training set shape: {X_train.shape}")
-    print(f"Final test set shape: {X_test.shape}")
     print(f"All data saved to: {data_dir}")
 
 

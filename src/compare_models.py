@@ -53,51 +53,88 @@ def get_latest_model_runs(experiment_name: str = "mlsecops-fraud-detection") -> 
 
 
 def compare_models(rf_run, xgb_run) -> Dict:
-    """Compare models based on fixed_recall metric."""
+    """Compare models based on Recall, ROC-AUC, and Precision."""
 
     # Extract metrics
     rf_metrics = rf_run.data.metrics
     xgb_metrics = xgb_run.data.metrics
 
-    rf_recall = rf_metrics.get("fixed_recall", 0.0)
-    xgb_recall = xgb_metrics.get("fixed_recall", 0.0)
+    # Get key metrics (with fallback to 0.0)
+    rf_recall = rf_metrics.get("recall", 0.0)
+    xgb_recall = xgb_metrics.get("recall", 0.0)
 
     rf_roc_auc = rf_metrics.get("roc_auc", 0.0)
     xgb_roc_auc = xgb_metrics.get("roc_auc", 0.0)
 
+    rf_precision = rf_metrics.get("precision", 0.0)
+    xgb_precision = xgb_metrics.get("precision", 0.0)
+
+    # Store in lists for normalization
+    recall_list = [rf_recall, xgb_recall]
+    roc_auc_list = [rf_roc_auc, xgb_roc_auc]
+    precision_list = [rf_precision, xgb_precision]
+
+    # Normalize metrics (0-1 scale, higher is better)
+    def normalize(value, min_val, max_val):
+        if max_val == min_val:
+            return 0.5  # Equal performance
+        return (value - min_val) / (max_val - min_val)
+
+    # Normalize metrics
+    rf_norm_recall = normalize(rf_recall, min(recall_list), max(recall_list))
+    rf_norm_roc_auc = normalize(rf_roc_auc, min(roc_auc_list), max(roc_auc_list))
+    rf_norm_precision = normalize(rf_precision, min(precision_list), max(precision_list))
+
+    xgb_norm_recall = normalize(xgb_recall, min(recall_list), max(recall_list))
+    xgb_norm_roc_auc = normalize(xgb_roc_auc, min(roc_auc_list), max(roc_auc_list))
+    xgb_norm_precision = normalize(xgb_precision, min(precision_list), max(precision_list))
+
+    # Calculate aggregate scores (weighted average)
+    # Weights: Recall=40%, ROC-AUC=40%, Precision=20%
+    rf_aggregate = (0.40 * rf_norm_recall + 0.40 * rf_norm_roc_auc + 0.20 * rf_norm_precision)
+    xgb_aggregate = (0.40 * xgb_norm_recall + 0.40 * xgb_norm_roc_auc + 0.20 * xgb_norm_precision)
+
+    # Print comparison
     print("=" * 70)
     print("MODEL COMPARISON RESULTS")
     print("=" * 70)
-    print(f"\nMetric Priority: Fixed Recall @ FPR=5%")
-    print(f"\n{'Model':<20} {'Fixed Recall':<15} {'ROC-AUC':<12} {'Run ID'}")
-    print("-" * 70)
-    print(f"{'Random Forest':<20} {rf_recall:<15.4f} {rf_roc_auc:<12.4f} {rf_run.info.run_id[:8]}")
-    print(f"{'XGBoost':<20} {xgb_recall:<15.4f} {xgb_roc_auc:<12.4f} {xgb_run.info.run_id[:8]}")
-    print("-" * 70)
 
-    # Compare based on fixed_recall
-    if rf_recall > xgb_recall:
+    print(f"\n{'Metric':<20} {'Balanced RF':<20} {'XGBoost':<20} {'Winner'}")
+    print("-" * 70)
+    print(f"{'Recall':<20} {rf_recall:<20.4f} {xgb_recall:<20.4f} {'BRF' if rf_recall > xgb_recall else 'XGB'}")
+    print(f"{'ROC-AUC':<20} {rf_roc_auc:<20.4f} {xgb_roc_auc:<20.4f} {'BRF' if rf_roc_auc > xgb_roc_auc else 'XGB'}")
+    print(f"{'Precision':<20} {rf_precision:<20.4f} {xgb_precision:<20.4f} {'BRF' if rf_precision > xgb_precision else 'XGB'}")
+
+    print("\n" + "-" * 70)
+    print(f"{'AGGREGATE SCORE':<20} {rf_aggregate:<20.4f} {xgb_aggregate:<20.4f}")
+    print(f"{'Weights:':<20} {'Recall=40%, AUC=40%, Precision=20%'}")
+
+    # Determine winner based on aggregate score
+    if rf_aggregate > xgb_aggregate:
         winner_run = rf_run
-        winner_name = "Random Forest"
-        winner_recall = rf_recall
-        diff = rf_recall - xgb_recall
+        winner_name = rf_run.data.tags.get("model_type", "Balanced Random Forest")
+        winner_score = rf_aggregate
     else:
         winner_run = xgb_run
-        winner_name = "XGBoost"
-        winner_recall = xgb_recall
-        diff = xgb_recall - rf_recall
+        winner_name = xgb_run.data.tags.get("model_type", "XGBoost")
+        winner_score = xgb_aggregate
 
-    print(f"\n WINNER: {winner_name}")
-    print(f"   Fixed Recall: {winner_recall:.4f}")
-    print(f"   Better by: {diff:.4f} ({diff*100:.2f}%)")
+    print("\n" + "=" * 70)
+    print(f"WINNER: {winner_name}")
+    print(f"   Aggregate Score: {winner_score:.4f}")
+    print(f"   Run ID: {winner_run.info.run_id}")
     print("=" * 70)
 
     return {
         "winner_run": winner_run,
         "winner_name": winner_name,
-        "winner_recall": winner_recall,
+        "winner_score": winner_score,
+        "rf_aggregate": rf_aggregate,
+        "xgb_aggregate": xgb_aggregate,
         "rf_recall": rf_recall,
-        "xgb_recall": xgb_recall
+        "xgb_recall": xgb_recall,
+        "rf_roc_auc": rf_roc_auc,
+        "xgb_roc_auc": xgb_roc_auc
     }
 
 
@@ -105,8 +142,13 @@ def register_model(run, model_name: str, registry_name: str = "fraud-detection-m
     """Register the winning model to MLflow Model Registry."""
     client = MlflowClient()
 
-    # Model artifact path in MLflow run
-    model_uri = f"runs:/{run.info.run_id}/random_forest_model" if "Random Forest" in model_name else f"runs:/{run.info.run_id}/xgboost_model"
+    # Model artifact path in MLflow run (must match mlflow_model_name in training scripts)
+    # Check run tags to determine correct artifact path
+    model_type_tag = run.data.tags.get("model_type", "")
+    if "Random Forest" in model_type_tag:  # Matches both "Random Forest" and "Balanced Random Forest"
+        model_uri = f"runs:/{run.info.run_id}/brf_model"
+    else:
+        model_uri = f"runs:/{run.info.run_id}/xgb_model"
 
     print(f"\n Registering model to Model Registry...")
     print(f"   Model: {model_name}")
@@ -121,7 +163,7 @@ def register_model(run, model_name: str, registry_name: str = "fraud-detection-m
         client.update_model_version(
             name=registry_name,
             version=model_version.version,
-            description=f"{model_name} - Auto-selected based on Fixed Recall @ FPR=5%"
+            description=f"{model_name} - Auto-selected based on aggregate score (Recall=40%, AUC=40%, Precision=20%)"
         )
 
         # Add tags
@@ -136,7 +178,7 @@ def register_model(run, model_name: str, registry_name: str = "fraud-detection-m
             name=registry_name,
             version=model_version.version,
             key="selection_metric",
-            value="fixed_recall"
+            value="aggregate_score"
         )
 
         print(f"   Model registered successfully!")
@@ -168,7 +210,7 @@ def main():
 
     if not rf_run or not xgb_run:
         print("ERROR: Could not find both RF and XGBoost runs")
-        print(f"  Random Forest run: {'Found' if rf_run else 'Not found'}")
+        print(f"  Balanced Random Forest run: {'Found' if rf_run else 'Not found'}")
         print(f"  XGBoost run: {'Found' if xgb_run else 'Not found'}")
         sys.exit(1)
 
