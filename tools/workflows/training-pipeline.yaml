@@ -44,22 +44,22 @@ spec:
                 - name: workflow-name
                   value: "{{workflow.name}}"
 
-        - - name: validate
+        - - name: data-security-check
             templateRef:
-              name: template-validate-data
-              template: validate-data
+              name: template-security-check
+              template: security-check
             arguments:
               parameters:
                 - name: ecr-registry
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
-                  value: "validate_data-{{workflow.parameters.image-tag}}"
+                  value: "security_check-{{workflow.parameters.image-tag}}"
                 - name: s3-artifact-bucket
                   value: "{{workflow.parameters.s3-artifact-bucket}}"
                 - name: workflow-name
                   value: "{{workflow.name}}"
 
-        - - name: preprocess
+        - - name: preprocess-data
             templateRef:
               name: template-preprocess-data
               template: preprocess-data
@@ -93,16 +93,16 @@ spec:
     - name: train-parallel
       parallelism: 2
       steps:
-        - - name: train-random-forest
+        - - name: train-balanced-rf
             templateRef:
-              name: template-train-rf
-              template: train-rf
+              name: template-train-brf
+              template: train-brf
             arguments:
               parameters:
                 - name: ecr-registry
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
-                  value: "train_rf-{{workflow.parameters.image-tag}}"
+                  value: "train_brf-{{workflow.parameters.image-tag}}"
                 - name: mlflow-tracking-uri
                   value: "{{workflow.parameters.mlflow-tracking-uri}}"
                 - name: s3-artifact-bucket

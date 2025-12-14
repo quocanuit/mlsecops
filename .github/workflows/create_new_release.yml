@@ -22,17 +22,15 @@ jobs:
       matrix:
         image_name:
           [
-            validate_data,
+            security_check,
             preprocess_data,
-            train_rf,
+            train_brf,
             train_xgb,
             compare_models,
             deploy_model,
             mlflow_serving,
             fetch_prod_data,
-            merge_data,
-            retrain_rf,
-            retrain_xgb
+            merge_data
           ]
     env:
         VERSION_TAG: ${{ github.event.inputs.version_tag }}

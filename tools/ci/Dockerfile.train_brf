@@ -10,7 +10,7 @@ COPY tools/ci/requirements.train.txt .
 
 RUN pip install --no-cache-dir -r requirements.train.txt
 
-COPY src/retrain_xgb.py ./src/
+COPY src/train_brf.py ./src/
 COPY src/utils/__init__.py ./src/utils/
 COPY src/utils/train_common.py ./src/utils/
 COPY src/utils/mlflow_common.py ./src/utils/
@@ -20,4 +20,4 @@ ENV PYTHONPATH=/app/src
 
 ENV MLFLOW_TRACKING_URI=""
 
-CMD ["python", "src/retrain_xgb.py"]
+CMD ["python", "src/train_brf.py"]
