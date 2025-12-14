@@ -1,11 +1,11 @@
 apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
-  name: template-train-rf
+  name: template-train-brf
   namespace: argo-workflows
 spec:
   templates:
-    - name: train-rf
+    - name: train-brf
       inputs:
         parameters:
           - name: ecr-registry
@@ -32,9 +32,9 @@ spec:
               --local-dir "/workspace/artifacts/preprocessed" \
               --pattern "*.csv"
 
-            echo "Running Random Forest training..."
+            echo "Running Balanced Random Forest training..."
             cd /workspace
-            python /app/src/train_rf.py
+            python /app/src/train_brf.py
 
             echo "Training complete! Uploading models..."
             ls -lh artifacts/models/
@@ -46,7 +46,7 @@ spec:
               upload-dir \
               --local-dir "/workspace/artifacts/models" \
               --s3-prefix "artifacts/models" \
-              --pattern "*rf*"
+              --pattern "*brf*"
 
             echo "Random Forest model uploaded to S3"
         env:

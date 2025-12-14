@@ -10,7 +10,7 @@ on:
         options:
         - security_check
         - preprocess_data
-        - train_rf
+        - train_brf
         - train_xgb
       data_version:
         description: 'Git commit hash of .dvc data version'

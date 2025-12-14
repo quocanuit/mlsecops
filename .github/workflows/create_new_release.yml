@@ -24,7 +24,7 @@ jobs:
           [
             security_check,
             preprocess_data,
-            train_rf,
+            train_brf,
             train_xgb,
             compare_models,
             deploy_model,

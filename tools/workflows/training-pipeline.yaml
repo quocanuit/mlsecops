@@ -93,16 +93,16 @@ spec:
     - name: train-parallel
       parallelism: 2
       steps:
-        - - name: train-random-forest
+        - - name: train-balanced-rf
             templateRef:
-              name: template-train-rf
-              template: train-rf
+              name: template-train-brf
+              template: train-brf
             arguments:
               parameters:
                 - name: ecr-registry
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
-                  value: "train_rf-{{workflow.parameters.image-tag}}"
+                  value: "train_brf-{{workflow.parameters.image-tag}}"
                 - name: mlflow-tracking-uri
                   value: "{{workflow.parameters.mlflow-tracking-uri}}"
                 - name: s3-artifact-bucket
