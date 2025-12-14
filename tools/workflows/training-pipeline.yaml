@@ -44,22 +44,22 @@ spec:
                 - name: workflow-name
                   value: "{{workflow.name}}"
 
-        - - name: validate
+        - - name: data-security-check
             templateRef:
-              name: template-validate-data
-              template: validate-data
+              name: template-security-check
+              template: security-check
             arguments:
               parameters:
                 - name: ecr-registry
                   value: "{{workflow.parameters.ecr-registry}}"
                 - name: image-tag
-                  value: "validate_data-{{workflow.parameters.image-tag}}"
+                  value: "security_check-{{workflow.parameters.image-tag}}"
                 - name: s3-artifact-bucket
                   value: "{{workflow.parameters.s3-artifact-bucket}}"
                 - name: workflow-name
                   value: "{{workflow.name}}"
 
-        - - name: preprocess
+        - - name: preprocess-data
             templateRef:
               name: template-preprocess-data
               template: preprocess-data

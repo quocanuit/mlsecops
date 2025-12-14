@@ -8,7 +8,7 @@ on:
         required: true
         type: choice
         options:
-        - validate_data
+        - security_check
         - preprocess_data
         - train_rf
         - train_xgb
@@ -139,9 +139,9 @@ jobs:
             mkdir -p data/preprocessed/
             cp artifacts/preprocessed/* data/preprocessed/ 2>/dev/null || echo "No preprocessed data files to copy"
             ;;
-          validate_data)
+          security_check)
             mkdir -p data/validated/
-            cp artifacts/validated/* data/validated/ 2>/dev/null || echo "No validated data files to copy"
+            cp artifacts/validated/* data/validated/ 2>/dev/null || echo "No security validated data files to copy"
             ;;
           train_*)
             echo "Training completed - model saved in artifacts/models/"

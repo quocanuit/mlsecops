@@ -12,7 +12,7 @@ on:
         required: true
         type: choice
         options:
-        - validate_data
+        - security_check
         - preprocess_data
         - train_rf
         - train_xgb
@@ -21,8 +21,6 @@ on:
         - mlflow_serving
         - fetch_prod_data
         - merge_data
-        - retrain_rf
-        - retrain_xgb
       version_tag:
         description: 'Version tag (e.g., v0.0.1)'
         required: true
