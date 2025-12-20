@@ -57,6 +57,12 @@ def detect_label_flip(df: pd.DataFrame) -> pd.DataFrame:
         local_path="model_rf.pkl",
     )
 
+    download_model_from_s3(
+        bucket="mlsecops-model-temp",
+        key="model_xgb.pkl",
+        local_path="model_xgb.pkl",
+    )
+
     # ------------------------------------------------------------
     # 1) Feature cleaning
     # ------------------------------------------------------------
