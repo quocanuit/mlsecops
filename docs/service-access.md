@@ -14,6 +14,8 @@ Go to **Route53 Hosted zones**, create CNAME records pointing to the ELB DNS for
 - `argocd.lastdanceuit.io.vn`
 - `mlflow.lastdanceuit.io.vn`
 - `workflows.lastdanceuit.io.vn`
+- `prometheus.lastdanceuit.io.vn`
+- `grafana.lastdanceuit.io.vn`
 
 ![hosted-zones-records](./assets/hosted-zones-records.png)
 

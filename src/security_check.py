@@ -206,7 +206,7 @@ def main():
 
     print("\n=== VALIDATION REPORT ===")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    print(f"\nSaved cleaned CSV -> {output_file}")
+    print(f"\nSaved suspected CSV -> {output_file}")
     print(f"Saved report      -> {report_path}")
 
     return 0

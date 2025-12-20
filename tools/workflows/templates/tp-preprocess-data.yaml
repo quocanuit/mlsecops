@@ -20,15 +20,14 @@ spec:
           - |
             set -e
 
-            # Download validated data from S3
-            echo "Downloading validated data from S3..."
+            # Download raw data from S3
+            echo "Downloading raw data from S3..."
             python /app/src/utils/workflows_artifacts_handler.py \
               --bucket "{{inputs.parameters.s3-artifact-bucket}}" \
               --workflow-name "{{inputs.parameters.workflow-name}}" \
-              download-dir \
-              --s3-prefix "artifacts/validated" \
-              --local-dir "/workspace/artifacts/validated" \
-              --pattern "*.csv"
+              download-file \
+              --s3-key "data/raw/Base.csv" \
+              --local-path "/workspace/data/raw/Base.csv"
 
             echo "Running preprocessing..."
             cd /workspace
