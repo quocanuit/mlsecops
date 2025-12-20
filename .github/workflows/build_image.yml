@@ -8,7 +8,7 @@ on:
         required: true
         type: choice
         options:
-        - security_check
+        # - security_check
         - preprocess_data
         - train_brf
         - train_xgb

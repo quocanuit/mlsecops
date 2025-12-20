@@ -57,6 +57,12 @@ def detect_label_flip(df: pd.DataFrame) -> pd.DataFrame:
         local_path="model_rf.pkl",
     )
 
+    download_model_from_s3(
+        bucket="mlsecops-model-temp",
+        key="model_xgb.pkl",
+        local_path="model_xgb.pkl",
+    )
+
     # ------------------------------------------------------------
     # 1) Feature cleaning
     # ------------------------------------------------------------
@@ -185,13 +191,13 @@ def main():
     cleaned_df = detect_label_flip(df)
 
     report = {
-        "rows_total": int(cleaned_df.shape[0]),
+        "suspected_rows_total": int(cleaned_df.shape[0]),
     }
 
     output_dir = ARTIFACTS_DIR / "validated"
     os.makedirs(output_dir, exist_ok=True)
 
-    output_file = output_dir / "Base_validated.csv"
+    output_file = output_dir / "Base_suspected.csv"
     cleaned_df.to_csv(output_file, index=False)
 
     report_path = output_dir.parent / "validation_report.json"
@@ -200,7 +206,7 @@ def main():
 
     print("\n=== VALIDATION REPORT ===")
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    print(f"\nSaved cleaned CSV -> {output_file}")
+    print(f"\nSaved suspected CSV -> {output_file}")
     print(f"Saved report      -> {report_path}")
 
     return 0
