@@ -191,13 +191,13 @@ def main():
     cleaned_df = detect_label_flip(df)
 
     report = {
-        "rows_total": int(cleaned_df.shape[0]),
+        "suspected_rows_total": int(cleaned_df.shape[0]),
     }
 
     output_dir = ARTIFACTS_DIR / "validated"
     os.makedirs(output_dir, exist_ok=True)
 
-    output_file = output_dir / "Base_validated.csv"
+    output_file = output_dir / "Base_suspected.csv"
     cleaned_df.to_csv(output_file, index=False)
 
     report_path = output_dir.parent / "validation_report.json"

@@ -9,7 +9,7 @@ import os
 
 ROOT = Path(os.getcwd())
 ARTIFACTS_DIR = Path(os.getenv("ARTIFACTS_DIR", str(ROOT / "artifacts")))
-VALIDATED_DIR = Path(os.getenv("VALIDATED_DIR", str(ROOT / "data" / "validated")))
+DATA_DIR_RAW = Path(os.getenv("DATA_DIR_RAW", str(ROOT / "data" / "raw")))
 PREPROCESSED_DIR = Path(os.getenv("PREPROCESSED_DIR", str(ROOT / "artifacts" / "preprocessed")))
 
 
@@ -104,7 +104,7 @@ def save_report(report):
 
 
 def main():
-    df = pd.read_csv(VALIDATED_DIR / "Base_validated.csv")
+    df = pd.read_csv(DATA_DIR_RAW / "Base.csv")
     print(f"[INFO] Loaded {df.shape[0]:,} rows, {df.shape[1]} columns")
 
     # Store original row count before modifications
