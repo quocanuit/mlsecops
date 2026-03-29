@@ -23,8 +23,6 @@ The repository combines:
 - `tools/workflows/`: Argo Workflow pipelines and reusable templates
 - `tools/ci/`: Dockerfiles and build-time requirements for pipeline components
 - `tools/k8s/`: Kubernetes manifests for model serving
-- `docs/`: operational documentation (for example, service access)
-- `main.tex`: paper source
 
 ## End-to-End Workflow
 
@@ -118,3 +116,4 @@ pip install -r requirements.txt
 
 - Service access instructions are in `docs/service-access.md`.
 - This repository is focused on pipeline automation and reproducible MLSecOps experimentation for fraud detection workloads.
+- Demo: https://youtu.be/bO7CFvZHN7U
